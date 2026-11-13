@@ -6,17 +6,57 @@ import { metricCard } from './components/metricCard.js';
 import { assistantRoom } from './components/assistantRoom.js';
 import { metricDialog } from './components/metricDialog.js';
 import { metricDetailsDialog } from './components/metricDetails.js';
+import { environmentPage } from './components/environment.js';
+import { crewCommsPage } from './components/crewComms.js';
+
+const DEFAULT_ENVIRONMENT = {
+  radiation: { value: 0.18, dangerLimit: 0.50, unit: 'µSv/h' },
+  distanceEarthKm: 384400,
+  gravityG: 0,
+  cabin: {
+    temperature: { value: 22.4, lower: 18, upper: 28 },
+    pressure: { value: 101.3, lower: 95, upper: 110 },
+    oxygen: { value: 20.9, lower: 19.5, upper: 23.5 },
+    co2: { value: 820, upper: 1500 },
+    humidity: { value: 42, lower: 25, upper: 65 }
+  }
+};
+
+const DEFAULT_ENVIRONMENT_HISTORY = {
+  radiation: [0.12, 0.14, 0.16, 0.13, 0.17, 0.15, 0.18],
+  cabinTemperature: [22.1, 22.3, 22.0, 22.5, 22.2, 22.6, 22.4],
+  cabinPressure: [101.1, 101.2, 101.4, 101.3, 101.2, 101.4, 101.3],
+  oxygen: [20.9, 20.8, 21.0, 20.9, 21.0, 20.8, 20.9],
+  co2: [790, 810, 800, 825, 815, 830, 820],
+  humidity: [41, 43, 42, 44, 41, 43, 42]
+};
+
+const DEFAULT_CREW_CHAT = [
+  { id: 'seed-1', senderId: 'jun-park', senderName: 'Jun Park', senderInitials: 'JP', avatar: '👨🏻‍🚀', text: 'Systems check is complete on my side. Cabin telemetry looks steady.', time: '09:12' },
+  { id: 'seed-2', senderId: 'amara-okafor', senderName: 'Amara Okafor', senderInitials: 'AO', avatar: '👩🏾‍🚀', text: 'Copy. I will review the environmental readings after the next shift.', time: '09:18' },
+  { id: 'seed-3', senderId: 'mateo-ruiz', senderName: 'Mateo Ruiz', senderInitials: 'MR', avatar: '👨🏽‍🚀', text: 'Flight deck is ready. Let me know when the daily report is posted.', time: '09:21' }
+];
+
+function randomBetween(min, max, decimals = 1) {
+  const value = min + Math.random() * (max - min);
+  return Number(value.toFixed(decimals));
+}
+
+function shortTime() {
+  return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date());
+}
+
 
 export class App {
   constructor(root) {
     this.root = root;
     this.state = loadState(DEFAULT_METRICS);
+    this.initializeSimulationState();
     this.expression = 'neutral';
     this.view = 'overview';
     this.sidebarCollapsed = true;
     this.chatMessages = this.state.chatMessages || [];
     this.chatExpanded = false;
-    this.debugSession = false;
     this.terminalLines = [];
     this.crewSummaryIndex = 0;
     this.draggedMetricId = null;
@@ -36,8 +76,24 @@ export class App {
         this.openMetricDetails(event.target.dataset.id);
       }
     });
+    this.expression = this.getAssistantExpression();
   }
 
+  initializeSimulationState() {
+    this.state.metrics.forEach(metric => {
+      metric.chartType = metric.chartType || (metric.id === 'temperature' ? 'column' : 'line');
+      if (metric.id === 'temperature' && !Number.isFinite(Number(metric.dailyAverage))) {
+        metric.dailyAverage = Number(metric.value) || 36.8;
+      }
+    });
+    this.state.daysElapsed = Number.isFinite(Number(this.state.daysElapsed)) ? Math.max(0, Math.floor(Number(this.state.daysElapsed))) : 0;
+    if (!Array.isArray(this.state.crewSnapshots) || this.state.crewSnapshots.length === 0) this.state.crewSnapshots = structuredClone(DEMO_CREW);
+    if (!Array.isArray(this.state.crewChatMessages) || this.state.crewChatMessages.length === 0) this.state.crewChatMessages = structuredClone(DEFAULT_CREW_CHAT);
+    if (!this.state.environment) this.state.environment = structuredClone(DEFAULT_ENVIRONMENT);
+    if (!this.state.environmentHistory) this.state.environmentHistory = structuredClone(DEFAULT_ENVIRONMENT_HISTORY);
+    if (!this.state.personalLink) this.state.personalLink = { signal: 96, connectivity: 'connected' };
+    this.state.groupChatDay = Number(this.state.groupChatDay) || 0;
+  }
   persist() {
     const saved = saveState(this.state);
     this.root.dataset.saved = saved ? 'true' : 'false';
@@ -52,24 +108,34 @@ export class App {
     });
   }
 
-  getMetricsInDisplayOrder() {
-    const priority = {
-        critical: 0,
-        warning: 1,
-        normal: 2
-    };
 
+  getMetricsInDisplayOrder() {
+    const priority = { critical: 0, warning: 1, normal: 2 };
     return this.state.metrics
-        .map((metric, index) => ({
-            metric,
-            index,
-            severity: evaluateMetric(metric).severity
-        }))
-        .sort((a, b) =>
-            priority[a.severity] - priority[b.severity]
-            || a.index - b.index
-        )
-        .map(item => item.metric);
+      .map((metric, index) => ({ metric, index, severity: evaluateMetric(metric).severity }))
+      .sort((a, b) => (priority[a.severity] ?? 2) - (priority[b.severity] ?? 2) || a.index - b.index)
+      .map(item => item.metric);
+  }
+
+  getAssistantExpression() {
+    const focused = this.getFocusedCrew();
+    if (!focused) return 'neutral';
+    // AURA reacts only to the selected astronaut's health state and link quality.
+    if (focused.connectivity === 'offline') return 'alert';
+    if (focused.id === 'elena-voss' && !this.state.metrics.length) return 'neutral';
+    const healthSeverity = focused.id === 'elena-voss'
+      ? (this.getAlerts().some(item => item.severity === 'critical')
+        ? 'critical'
+        : this.getAlerts().length ? 'warning' : 'normal')
+      : (focused.status || 'normal');
+    if (healthSeverity === 'critical') return 'alert';
+    if (focused.connectivity === 'weak' || healthSeverity === 'warning') return 'frown';
+    return 'smile';
+  }
+
+  syncAssistantExpression() {
+    this.expression = this.getAssistantExpression();
+    this.updateAssistantExpression();
   }
 
   renderAvatarContent(avatar, fallback = '') {
@@ -93,10 +159,12 @@ export class App {
     document.body.dataset.theme = 'dark';
     const themeMeta = document.querySelector('meta[name="theme-color"]');
     if (themeMeta) themeMeta.content = '#050805';
-    const date = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date());
+    const missionDate = new Date(Date.now() + this.state.daysElapsed * 86400000);
+    const date = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(missionDate);
+    this.expression = this.getAssistantExpression();
     const activityCount = this.state.log.length;
     if (this.view === 'crew') { const selectedIndex = this.getCrewSnapshot().findIndex(member => member.id === this.state.selectedCrewId); if (selectedIndex >= 0 && !this.crewSummaryIndexTouched) this.crewSummaryIndex = selectedIndex; }
-    const viewTitle = ({ overview: 'Crew overview', crew: 'Crew summary', activity: 'Activity log', debug: 'Debug' })[this.view] || 'Crew overview';
+    const viewTitle = ({ overview: 'Crew overview', crew: 'Crew summary', comms: 'Crew comms', environment: 'Environment', activity: 'Activity log', debug: 'Debug' })[this.view] || 'Crew overview';
 
     this.root.innerHTML = `
       <div class="app-shell ${this.sidebarCollapsed ? 'sidebar-collapsed' : ''}" data-theme="dark">
@@ -109,15 +177,17 @@ export class App {
           <nav class="primary-nav" aria-label="Main navigation">
             <button class="nav-item ${this.view === 'overview' ? 'is-active' : ''}" data-action="navigate" data-view="overview" title="Overview">${icon('activity', 18)}<span>Overview</span></button>
             <button class="nav-item ${this.view === 'crew' ? 'is-active' : ''}" data-action="navigate" data-view="crew" title="Crew summary">${icon('users', 18)}<span>Crew summary</span><span class="nav-count">04</span></button>
+            <button class="nav-item ${this.view === 'comms' ? 'is-active' : ''}" data-action="navigate" data-view="comms" title="Crew comms">${icon('messageCircle', 18)}<span>Crew comms</span><span class="nav-count">${this.state.crewChatMessages.length}</span></button>
+            <button class="nav-item ${this.view === 'environment' ? 'is-active' : ''}" data-action="navigate" data-view="environment" title="Environment">${icon('activity', 18)}<span>Environment</span></button>
             <button class="nav-item ${this.view === 'activity' ? 'is-active' : ''}" data-action="navigate" data-view="activity" title="Activity log">${icon('clock', 18)}<span>Activity log</span><span class="nav-count">${activityCount}</span></button>
-            <button class="nav-item ${this.view === 'debug' ? 'is-active' : ''}" data-action="open-debug" title="Debug">${icon('terminal', 18)}<span>Debug</span></button>
+            <button class="nav-item ${this.view === 'debug' ? 'is-active' : ''}" data-action="navigate" data-view="debug" title="Debug">${icon('terminal', 18)}<span>Debug</span></button>
           </nav>
           <div class="sidebar-divider"></div>
           <div class="mission-label">CREW MONITORING</div>
           <div class="crew-card"><div class="crew-avatar sidebar-profile-avatar"><span class="avatar-content" data-profile-avatar-content>${this.renderProfileAvatar()}</span><span class="crew-online"></span></div><div><b>Elena Voss</b><span>Expedition specialist</span></div><span class="crew-more">···</span></div>
           <div class="sidebar-bottom">
             <div class="offline-card"><span class="offline-icon">${icon('shield', 17)}</span><div><b>Offline-ready</b><span>Data stays on this device</span></div><span class="offline-dot"></span></div>
-            <div class="sidebar-footer"><span>ORBITAL SYSTEMS</span><span>BUILD 1.5.0</span></div>
+            <div class="sidebar-footer"><span>ORBITAL SYSTEMS</span><span>BUILD 1.6.0</span></div>
           </div>
         </aside>
 
@@ -126,6 +196,7 @@ export class App {
             <div class="breadcrumb"><span>Mission control</span>${icon('chevron', 13)}<b>${viewTitle}</b></div>
             <div class="topbar-actions">
               <span class="local-indicator"><span></span> LOCAL MODE</span>
+              <button type="button" class="skip-day-button" data-action="skip-day" title="Advance the simulation by one day">${icon('clock', 14)} <span>SKIP DAY</span><b>+1</b></button>
               <div class="profile-menu">
                 <button type="button" class="topbar-profile profile-trigger" data-action="toggle-profile-menu" aria-expanded="false" aria-haspopup="true">
                   <span class="profile-avatar"><span class="avatar-content" data-profile-avatar-content>${this.renderProfileAvatar()}</span></span><span class="profile-identity"><b>Elena Voss</b><span>Crew member 01</span></span>${icon('chevron', 13)}
@@ -140,13 +211,17 @@ export class App {
             </div>
           </header>
 
-          ${this.view === 'overview' ? this.renderOverview({ date }) : this.view === 'crew' ? this.renderCrew({ date }) : this.view === 'debug' ? this.renderDebug({ date }) : this.renderActivity({ date })}
+          ${this.view === 'overview' ? this.renderOverview({ date }) : this.view === 'crew' ? this.renderCrew({ date }) : this.view === 'comms' ? this.renderCrewComms() : this.view === 'environment' ? this.renderEnvironment({ date }) : this.view === 'debug' ? this.renderDebug({ date }) : this.renderActivity({ date })}
           <footer class="page-footer"><span>ORBIT HEALTH <i>•</i> CREW MONITORING INTERFACE</span><span>Demo data · Local device storage</span></footer>
         </main>
         <div id="modal-root"></div>
       </div>
       <div class="toast" id="toast" role="status" aria-live="polite"></div>`;
 
+    if (this.view === 'comms') {
+      const messageBox = this.root.querySelector('#crew-comms-messages');
+      if (messageBox) messageBox.scrollTop = messageBox.scrollHeight;
+    }
     if (this.view === 'overview') {
       const messageBox = this.root.querySelector('#assistant-chat-messages');
       if (messageBox) messageBox.scrollTop = messageBox.scrollHeight;
@@ -154,8 +229,7 @@ export class App {
   }
 
   renderOverview({ date }) {
-    const orderedMetrics = this.getMetricsInDisplayOrder();
-    const cards = orderedMetrics.map(metricCard).join('');
+    const cards = this.getMetricsInDisplayOrder().map(metricCard).join('');
     const crew = this.getCrewSnapshot();
     const emergencies = crew.filter(member => member.emergency || member.status === 'critical');
     const heartbeatCards = crew.map(member => this.renderHeartbeatCard(member)).join('');
@@ -185,6 +259,23 @@ export class App {
       </div>`;
   }
 
+  renderCrewComms() {
+    return crewCommsPage({
+      messages: this.state.crewChatMessages,
+      crew: this.getCrewSnapshot(),
+      profileAvatar: this.state.profileAvatar
+    });
+  }
+
+  renderEnvironment({ date }) {
+    return environmentPage({
+      environment: this.state.environment,
+      history: this.state.environmentHistory,
+      date,
+      daysElapsed: this.state.daysElapsed
+    });
+  }
+
   getCrewSnapshot() {
     const find = id => this.state.metrics.find(metric => metric.id === id);
     const alerts = this.getAlerts();
@@ -194,12 +285,12 @@ export class App {
     const current = {
       id: 'elena-voss', name: 'Elena Voss', initials: 'EV', avatar: this.state.profileAvatar || '👩🏻‍🚀', role: 'Expedition specialist',
       status: severity, statusLabel: severity === 'critical' ? 'Emergency review' : severity === 'warning' ? 'Needs review' : 'Within demo ranges',
-      emergency: severity === 'critical', heartRate, signal: 96, connectivity: 'connected',
+      emergency: severity === 'critical', heartRate, signal: this.state.personalLink?.signal ?? 96, connectivity: this.state.personalLink?.connectivity || 'connected',
       waveform: [82,84,80,78,80,82,84,80,112,65,78,82,84,80,78,82,84,80,112,65,78,82,80,79,84,82,112,65,80,82],
       metricReadings: this.state.metrics.map(metric => ({ id: metric.id, name: metric.name, value: `${formatMetricValue(metric)}${metric.unit ? ` ${metric.unit}` : ''}`, severity: evaluateMetric(metric).severity, label: evaluateMetric(metric).label })),
-      readings: [...this.state.metrics.map(metric => [metric.name, `${formatMetricValue(metric)}${metric.unit ? ` ${metric.unit}` : ''}`]), ['Connectivity', 'Connected · 96%']]
+      readings: [...this.state.metrics.map(metric => [metric.name, `${formatMetricValue(metric)}${metric.unit ? ` ${metric.unit}` : ''}`]), ['Connectivity', `${this.state.personalLink?.connectivity || 'connected'} · ${this.state.personalLink?.signal ?? 96}%`]]
     };
-    return [current, ...DEMO_CREW];
+    return [current, ...this.state.crewSnapshots];
   }
 
   renderHeartbeatCard(member) {
@@ -305,7 +396,6 @@ export class App {
   }
 
   renderDebug({ date }) {
-    if (!this.debugSession) return '<section class="page-header"><div><div class="eyebrow">MISSION CONSOLE</div><h1>Debug access required</h1></div></section>';
     const output = this.terminalLines.length ? this.terminalLines : [
       'ORBIT HEALTH / LOCAL DIAGNOSTICS',
       'Debug session opened. Type "help" to list available commands.'
@@ -323,10 +413,10 @@ export class App {
           <p>Restore the original demo readings and clear all locally stored app information, including custom metrics, activity history, selected crew member, saved preferences, and AURA conversation.</p>
           <div class="debug-reset-warning">${icon('warning', 16)} This action cannot be undone.</div>
           <button type="button" class="button button--danger" data-action="factory-reset">${icon('refresh', 15)} Factory reset app</button>
-          <div class="debug-tools__meta"><span>App version</span><b>1.5.0</b><span>Storage</span><b>Browser localStorage</b><span>Access gate</span><b>Decorative password prompt</b></div>
+          <div class="debug-tools__meta"><span>App version</span><b>1.6.0</b><span>Storage</span><b>Browser localStorage</b><span>Access</span><b>Open navigation</b></div>
         </aside>
       </section>
-      <p class="debug-disclaimer">Debug is a local prototype utility. Its password prompt is a navigation gate only and does not protect data from someone inspecting the browser or source files.</p>`;
+      <p class="debug-disclaimer">Debug is a local prototype utility. Commands affect only this browser’s mock data.</p>`;
   }
 
   openModal(metric = null) {
@@ -345,19 +435,6 @@ export class App {
     document.body.classList.add('modal-open');
   }
 
-  openDebugGate() {
-    const modalRoot = this.root.querySelector('#modal-root');
-    modalRoot.innerHTML = `
-      <div class="modal-backdrop debug-gate-backdrop">
-        <section class="modal debug-gate-modal" role="dialog" aria-modal="true" aria-labelledby="debug-gate-title">
-          <div class="modal-heading"><div><div class="eyebrow">RESTRICTED MODULE</div><h2 id="debug-gate-title">Debug access</h2></div><button class="icon-button modal-close-button" data-action="close-debug-gate" aria-label="Close">${icon('close', 17)}</button></div>
-          <p class="debug-gate-copy">Enter the local operator password to open the debug console.</p>
-          <form id="debug-password-form"><label class="field"><span>Access password</span><input type="password" name="password" autocomplete="off" placeholder="Enter password" required /></label><p class="debug-gate-error" id="debug-gate-error" aria-live="polite"></p><div class="modal-actions"><span class="modal-note">Local prototype access gate</span><button type="submit" class="button button--primary">Unlock debug</button></div></form>
-        </section>
-      </div>`;
-    document.body.classList.add('modal-open');
-    modalRoot.querySelector('input[name="password"]')?.focus();
-  }
 
   closeModal() {
     this.root.querySelector('#modal-root').innerHTML = '';
@@ -418,9 +495,7 @@ export class App {
     this.chatMessages.push({ role: 'user', text: question }, { role: 'assistant', text: answer });
     this.chatMessages = this.chatMessages.slice(-100);
     this.state.chatMessages = this.chatMessages;
-    this.expression = focused.id !== 'elena-voss'
-      ? (focused.status === 'normal' ? 'neutral' : 'frown')
-      : alerts.some(item => item.severity === 'critical') ? 'alert' : alerts.length ? 'frown' : 'neutral';
+    this.expression = this.getAssistantExpression();
     this.persist();
     this.updateAssistantExpression();
 
@@ -448,27 +523,270 @@ export class App {
   }
 
   updateAssistantExpression() {
-      const stage = this.root.querySelector('.assistant-stage');
-      const preview = this.root.querySelector('.assistant-custom-preview');
-
-      const expressionImages = {
-          neutral: './assets/ai_neutral.png',
-          smile: './assets/ai_smile.png',
-          frown: './assets/ai_frown.png',
-          alert: './assets/ai_alert.png'
+    const stage = this.root.querySelector('.assistant-stage');
+    const preview = this.root.querySelector('.assistant-custom-preview');
+    const expressionImages = {
+      neutral: './assets/ai_neutral.png',
+      smile: './assets/ai_smile.png',
+      frown: './assets/ai_frown.png',
+      alert: './assets/ai_alert.png'
+    };
+    if (stage) stage.className = `assistant-stage assistant-stage--${this.expression}`;
+    if (preview) {
+      preview.onload = () => {
+        preview.hidden = false;
+        if (preview.nextElementSibling) preview.nextElementSibling.hidden = true;
       };
+      preview.onerror = () => {
+        preview.hidden = true;
+        if (preview.nextElementSibling) preview.nextElementSibling.hidden = false;
+      };
+      preview.src = expressionImages[this.expression] || expressionImages.neutral;
+      preview.alt = `AURA ${this.expression} expression`;
+    }
+  }
 
-      if (stage) {
-          stage.className =
-              `assistant-stage assistant-stage--${this.expression}`;
+  normalMetricValue(metric) {
+    switch (metric.id) {
+      case 'blood-pressure': return { systolic: randomBetween(112, 128, 0), diastolic: randomBetween(68, 84, 0) };
+      case 'heart-rate': return randomBetween(66, 88, 0);
+      case 'blood-sugar': return randomBetween(88, 124, 0);
+      case 'temperature': return randomBetween(36.4, 37.2, 1);
+      case 'sleep': return randomBetween(6.3, 8.8, 1);
+      case 'mood': return Math.random() < .25 ? 'Great' : 'Steady';
+      case 'muscle-mass': return randomBetween(57, 62, 1);
+      case 'hydration': return randomBetween(1.8, 2.8, 1);
+      default: {
+        const base = Number(metric.value) || 10;
+        const lowerRule = (metric.thresholds || []).find(rule => rule.field === 'value' && ['lt', 'lte'].includes(rule.operator) && Number.isFinite(Number(rule.value)));
+        const upperRule = (metric.thresholds || []).find(rule => rule.field === 'value' && ['gt', 'gte'].includes(rule.operator) && Number.isFinite(Number(rule.value)));
+        const spread = Math.max(.2, Math.abs(base) * .05);
+        const lower = lowerRule ? Number(lowerRule.value) + Math.max(.1, Math.abs(Number(lowerRule.value)) * .05) : base - spread;
+        const upper = upperRule ? Number(upperRule.value) - Math.max(.1, Math.abs(Number(upperRule.value)) * .05) : base + spread;
+        if (lower < upper) return randomBetween(lower, upper, 1);
+        return randomBetween(base - spread, base + spread, 1);
       }
+    }
+  }
 
-      if (preview) {
-          preview.src =
-              expressionImages[this.expression] || expressionImages.neutral;
+  forceMetricSeverity(metric, severity) {
+    const rule = (metric.thresholds || []).find(item => item.severity === severity);
+    if (!rule) return false;
+    if (rule.operator === 'in' && Array.isArray(rule.value)) {
+      metric.value = rule.value[0];
+      return true;
+    }
+    const boundary = Number(rule.value);
+    if (!Number.isFinite(boundary)) return false;
+    const margin = Math.max(metric.id === 'temperature' ? .2 : 1, Math.abs(boundary) * .06);
+    const value = ['gt', 'gte'].includes(rule.operator) ? boundary + margin : boundary - margin;
+    if (metric.kind === 'blood-pressure') {
+      metric.value = { ...metric.value, [rule.field]: Math.round(value) };
+    } else {
+      metric.value = metric.id === 'temperature' ? Number(value.toFixed(1)) : Number(value.toFixed(metric.unit === 'bpm' ? 0 : 1));
+    }
+    return true;
+  }
 
-          preview.alt = `AURA ${this.expression} expression`;
+  simulatePersonalDay(dayNumber) {
+    const possible = this.state.metrics.filter(metric => (metric.thresholds || []).some(rule => ['warning', 'critical'].includes(rule.severity)));
+    const roll = Math.random();
+    const desiredSeverity = roll < .025 ? 'critical' : roll < .105 ? 'warning' : null;
+    const candidates = desiredSeverity ? possible.filter(metric => metric.thresholds.some(rule => rule.severity === desiredSeverity)) : [];
+    const eventMetric = candidates.length ? candidates[Math.floor(Math.random() * candidates.length)] : null;
+    for (const metric of this.state.metrics) {
+      const previous = formatMetricValue(metric);
+      if (metric.id === 'temperature') {
+        const samples = Array.from({ length: 5 }, () => randomBetween(36.4, 37.2, 1));
+        if (metric === eventMetric) {
+          this.forceMetricSeverity(metric, desiredSeverity);
+          // Include the flagged current reading in the day's average as well.
+          samples[samples.length - 1] = Number(metric.value);
+        } else {
+          metric.value = samples[samples.length - 1];
+        }
+        const average = Number((samples.reduce((sum, value) => sum + value, 0) / samples.length).toFixed(1));
+        metric.dailyAverage = average;
+        metric.trend = [...(metric.trend || []).slice(-17), average];
+      } else {
+        metric.value = this.normalMetricValue(metric);
+        if (metric === eventMetric) this.forceMetricSeverity(metric, desiredSeverity);
+        const trendValue = metric.kind === 'blood-pressure' ? Number(metric.value.systolic)
+          : metric.kind === 'mood' ? ({ Great: 4, Steady: 3, Low: 2, Strained: 1 }[metric.value] || 3)
+          : Number(metric.value);
+        metric.trend = [...(metric.trend || []).slice(-17), trendValue];
       }
+      metric.updated = `Mission day ${dayNumber}`;
+      const next = formatMetricValue(metric);
+      this.state.log.push(createLogEntry(metric, previous, next, `Daily simulation · Day ${dayNumber}`));
+    }
+    this.state.log = this.state.log.slice(-500);
+    const linkRoll = Math.random();
+    this.state.personalLink = linkRoll < .025
+      ? { connectivity: 'offline', signal: 0 }
+      : linkRoll < .12
+        ? { connectivity: 'weak', signal: Math.round(randomBetween(12, 32, 0)) }
+        : { connectivity: 'connected', signal: Math.round(randomBetween(76, 99, 0)) };
+  }
+
+  normalCrewReading(id, member) {
+    const existing = member.metricReadings.find(item => item.id === id);
+    const base = existing?.value || '';
+    switch (id) {
+      case 'blood-pressure': return `${Math.round(randomBetween(112, 128, 0))}/${Math.round(randomBetween(68, 84, 0))} mmHg`;
+      case 'heart-rate': return `${Math.round(randomBetween(66, 88, 0))} bpm`;
+      case 'blood-sugar': return `${Math.round(randomBetween(88, 124, 0))} mg/dL`;
+      case 'temperature': return `${randomBetween(36.4, 37.2, 1).toFixed(1)} °C`;
+      case 'sleep': return `${randomBetween(6.3, 8.8, 1).toFixed(1)} h`;
+      case 'mood': return Math.random() < .25 ? 'Great' : 'Steady';
+      case 'muscle-mass': return `${randomBetween(57, 62, 1).toFixed(1)} kg`;
+      case 'hydration': return `${randomBetween(1.8, 2.8, 1).toFixed(1)} L`;
+      default: return base;
+    }
+  }
+
+  forceCrewReading(reading, severity) {
+    const values = {
+      'blood-pressure': severity === 'critical' ? '148/94 mmHg' : '86/54 mmHg',
+      'heart-rate': severity === 'critical' ? '118 bpm' : '54 bpm',
+      'blood-sugar': severity === 'critical' ? '192 mg/dL' : '64 mg/dL',
+      'temperature': severity === 'critical' ? '38.3 °C' : '35.2 °C',
+      'sleep': severity === 'warning' ? '5.1 h' : '7.4 h',
+      'mood': severity === 'warning' ? 'Strained' : 'Steady',
+      'muscle-mass': severity === 'warning' ? '53.2 kg' : '59.0 kg',
+      'hydration': severity === 'warning' ? '1.2 L' : '2.2 L'
+    };
+    reading.value = values[reading.id] || reading.value;
+    reading.severity = severity;
+    reading.label = severity === 'critical' ? 'Critical demo threshold crossed' : 'Warning demo threshold crossed';
+  }
+
+  evaluateCrewReading(reading) {
+    const numeric = Number.parseFloat(String(reading.value).replace(',', '.'));
+    let severity = 'normal';
+    let label = 'Within configured demo range';
+    if (reading.id === 'blood-pressure') {
+      const [sys, dia] = String(reading.value).split(/[ /]/).map(Number);
+      if (sys >= 140 || dia >= 90) severity = 'critical'; else if (sys < 90 || dia < 60) severity = 'warning';
+    } else if (reading.id === 'heart-rate') {
+      if (numeric > 110) severity = 'critical'; else if (numeric < 60) severity = 'warning';
+    } else if (reading.id === 'blood-sugar') {
+      if (numeric < 70 || numeric > 180) severity = 'critical';
+    } else if (reading.id === 'temperature') {
+      if (numeric < 35.5 || numeric > 38) severity = 'critical';
+    } else if (reading.id === 'sleep') {
+      if (numeric < 6 || numeric > 10) severity = 'warning';
+    } else if (reading.id === 'mood') {
+      if (['Low', 'Strained'].includes(reading.value)) severity = 'warning';
+    } else if (reading.id === 'muscle-mass') {
+      if (numeric < 54 || numeric > 64) severity = 'warning';
+    } else if (reading.id === 'hydration') {
+      if (numeric < 1.5 || numeric > 4) severity = 'warning';
+    }
+    reading.severity = severity;
+    reading.label = severity === 'normal' ? label : `${severity === 'critical' ? 'Critical' : 'Warning'} demo threshold crossed`;
+  }
+
+  simulateCrewDay(dayNumber) {
+    const warningIds = ['heart-rate', 'blood-pressure', 'sleep', 'mood', 'muscle-mass', 'hydration'];
+    const criticalIds = ['heart-rate', 'blood-pressure', 'blood-sugar', 'temperature'];
+    for (const member of this.state.crewSnapshots) {
+      for (const reading of member.metricReadings || []) {
+        reading.value = this.normalCrewReading(reading.id, member);
+        this.evaluateCrewReading(reading);
+      }
+      const roll = Math.random();
+      const severity = roll < .015 ? 'critical' : roll < .075 ? 'warning' : null;
+      if (severity) {
+        const candidates = (member.metricReadings || []).filter(reading => (severity === 'critical' ? criticalIds : warningIds).includes(reading.id));
+        if (candidates.length) this.forceCrewReading(candidates[Math.floor(Math.random() * candidates.length)], severity);
+      }
+      member.status = member.metricReadings.some(reading => reading.severity === 'critical') ? 'critical'
+        : member.metricReadings.some(reading => reading.severity === 'warning') ? 'warning' : 'normal';
+      member.statusLabel = member.status === 'critical' ? 'Emergency review' : member.status === 'warning' ? 'Needs review' : 'Within demo ranges';
+      member.emergency = member.status === 'critical';
+      const linkRoll = Math.random();
+      member.connectivity = linkRoll < .025 ? 'offline' : linkRoll < .12 ? 'weak' : 'connected';
+      member.signal = member.connectivity === 'offline' ? 0 : member.connectivity === 'weak' ? Math.round(randomBetween(12, 32, 0)) : Math.round(randomBetween(76, 99, 0));
+      const hr = member.metricReadings.find(reading => reading.id === 'heart-rate');
+      member.heartRate = hr ? Number.parseInt(hr.value, 10) : null;
+      const base = member.heartRate || 75;
+      member.waveform = member.connectivity === 'offline' ? [] : Array.from({ length: 42 }, (_, index) => {
+        const phase = index % 12;
+        const pulse = phase === 5 ? 17 : phase === 6 ? -7 : phase === 7 ? 4 : 0;
+        return Math.max(42, Math.min(125, Math.round(base + randomBetween(-2, 2, 0) + pulse)));
+      });
+      member.readings = (member.metricReadings || []).map(reading => [reading.name, reading.value]);
+      member.readings.push(['Connectivity', `${member.connectivity} · ${member.signal}%`]);
+      member.lastUpdatedDay = dayNumber;
+    }
+  }
+
+  simulateEnvironmentDay() {
+    const environment = this.state.environment;
+    const history = this.state.environmentHistory;
+    environment.distanceEarthKm += Math.round(randomBetween(18000, 52000, 0));
+    environment.gravityG = Math.random() < .18 ? Number(randomBetween(.001, .004, 3)) : 0;
+    environment.radiation.value = Math.random() < .05 ? randomBetween(.54, .88, 2) : randomBetween(.10, .38, 2);
+    environment.cabin.temperature.value = randomBetween(21.2, 23.8, 1);
+    environment.cabin.pressure.value = randomBetween(99.5, 103.2, 1);
+    environment.cabin.oxygen.value = randomBetween(20.4, 21.4, 1);
+    environment.cabin.co2.value = Math.random() < .03 ? Math.round(randomBetween(1550, 1780, 0)) : Math.round(randomBetween(650, 1050, 0));
+    environment.cabin.humidity.value = randomBetween(36, 53, 0);
+    if (Math.random() < .025) environment.cabin.temperature.value = Math.random() < .5 ? randomBetween(16.5, 17.8, 1) : randomBetween(28.5, 30.2, 1);
+    for (const [key, value] of Object.entries({
+      radiation: environment.radiation.value,
+      cabinTemperature: environment.cabin.temperature.value,
+      cabinPressure: environment.cabin.pressure.value,
+      oxygen: environment.cabin.oxygen.value,
+      co2: environment.cabin.co2.value,
+      humidity: environment.cabin.humidity.value
+    })) {
+      history[key] = [...(history[key] || []).slice(-29), value];
+    }
+  }
+
+  sendCrewMessage(rawText) {
+    const text = String(rawText || '').trim();
+    if (!text) return;
+    this.state.crewChatMessages.push({
+      id: `crew-${Date.now()}`, senderId: 'elena-voss', senderName: 'Elena Voss', senderInitials: 'EV',
+      avatar: this.state.profileAvatar || '👩🏻‍🚀', text, time: shortTime()
+    });
+    this.state.crewChatMessages = this.state.crewChatMessages.slice(-200);
+    this.persist();
+    this.render();
+    const input = this.root.querySelector('#crew-chat-input');
+    if (input) input.focus();
+  }
+
+  skipDay() {
+    const nextDay = this.state.daysElapsed + 1;
+    const missionDay = nextDay + 1;
+    this.simulatePersonalDay(missionDay);
+    this.simulateCrewDay(missionDay);
+    this.simulateEnvironmentDay();
+    this.state.daysElapsed = nextDay;
+    if (Math.random() < .55) {
+      const available = this.state.crewSnapshots.filter(member => member.connectivity !== 'offline');
+      if (available.length) {
+        const member = available[Math.floor(Math.random() * available.length)];
+        const messages = [
+          'Daily status report has been posted. Please review your assigned checks.',
+          'I have completed the scheduled cabin inspection.',
+          'Telemetry sync finished. Let me know if you spot anything unusual.',
+          'Shift handover is complete. All pending notes are in the mission log.'
+        ];
+        this.state.crewChatMessages.push({ id: `auto-${Date.now()}`, senderId: member.id, senderName: member.name, senderInitials: member.initials, avatar: member.avatar, text: messages[Math.floor(Math.random() * messages.length)], time: shortTime() });
+        this.state.crewChatMessages = this.state.crewChatMessages.slice(-200);
+      }
+    }
+    this.state.log.push({ id: `day-${Date.now()}`, metricId: 'simulation', metricName: 'Mission simulation', previousValue: `Day ${nextDay}`, nextValue: `Day ${missionDay}`, note: 'Simulation advanced one day', time: shortTime() });
+    this.state.log = this.state.log.slice(-500);
+    this.syncAssistantExpression();
+    this.persist();
+    this.render();
+    this.showToast(`Simulation advanced to mission day ${missionDay}.`);
   }
 
   runTerminalCommand(rawCommand) {
@@ -477,9 +795,9 @@ export class App {
     const lower = command.toLowerCase();
     const lines = [`operator@orbit:~$ ${command}`];
     if (lower === 'help') {
-      lines.push('Available commands:', '  help     show this command list', '  status   show local app diagnostics', '  metrics  list tracked metric names and values', '  alerts   list configured demo-threshold flags', '  clear    clear terminal output', '  whoami   show the current local operator');
+      lines.push('Available commands:', '  help     show this command list', '  status   show local app diagnostics', '  metrics  list tracked metric names and values', '  alerts   list configured demo-threshold flags', '  clear    clear terminal output', '  whoami   show the current local operator', '  skip     advance the simulation by one day');
     } else if (lower === 'status') {
-      lines.push(`App: Orbit Health 1.5.0`, `View: ${this.view}`, `Theme: dark`, `Metrics: ${this.state.metrics.length}`, `Activity entries: ${this.state.log.length}`, `AURA messages: ${this.chatMessages.length}`, `Focused crew member: ${this.getFocusedCrew().name}`, 'Storage: browser localStorage');
+      lines.push(`App: Orbit Health 1.6.0`, `View: ${this.view}`, `Theme: dark`, `Metrics: ${this.state.metrics.length}`, `Activity entries: ${this.state.log.length}`, `AURA messages: ${this.chatMessages.length}`, `Focused crew member: ${this.getFocusedCrew().name}`, 'Storage: browser localStorage');
     } else if (lower === 'metrics') {
       this.state.metrics.forEach(metric => lines.push(`- ${metric.name}: ${formatMetricValue(metric)} ${metric.unit || ''}`.trim()));
     } else if (lower === 'alerts') {
@@ -487,7 +805,10 @@ export class App {
       if (!alerts.length) lines.push('No metric currently crosses a configured demo threshold.');
       alerts.forEach(alert => lines.push(`- ${alert.metric.name}: ${alert.severity.toUpperCase()} / ${alert.label}`));
     } else if (lower === 'whoami') {
-      lines.push('local operator / debug access gate passed');
+      lines.push('local operator / offline demo workspace');
+    } else if (lower === 'skip') {
+      this.skipDay();
+      return;
     } else if (lower === 'clear') {
       this.terminalLines = [];
       this.updateTerminalOutput();
@@ -513,12 +834,14 @@ export class App {
     if (!window.confirm('Factory reset Orbit Health? This clears local readings, custom metrics, history, chat, and preferences.')) return;
     localStorage.removeItem(STORAGE_KEY);
     this.state = loadState(DEFAULT_METRICS);
+    this.initializeSimulationState();
     this.chatMessages = [];
+    this.state.chatMessages = [];
+    this.state.crewChatMessages = structuredClone(DEFAULT_CREW_CHAT);
     this.expression = 'neutral';
     this.chatExpanded = false;
     document.body.classList.remove('assistant-open');
     this.sidebarCollapsed = true;
-    this.debugSession = false;
     this.terminalLines = [];
     this.crewSummaryIndex = 0;
     this.crewSummaryIndexTouched = false;
@@ -605,45 +928,34 @@ export class App {
 
   handleMetricDrop(event) {
     const target = event.target.closest('.metric-card[draggable="true"]');
-
     if (!target || !this.draggedMetricId) return;
-
     event.preventDefault();
 
     const orderedMetrics = this.getMetricsInDisplayOrder();
-
-    const from = orderedMetrics.findIndex(
-        metric => metric.id === this.draggedMetricId
-    );
-
-    const to = orderedMetrics.findIndex(
-        metric => metric.id === target.dataset.metricId
-    );
+    const from = orderedMetrics.findIndex(metric => metric.id === this.draggedMetricId);
+    const to = orderedMetrics.findIndex(metric => metric.id === target.dataset.metricId);
 
     if (from >= 0 && to >= 0 && from !== to) {
+      const fromSeverity = evaluateMetric(orderedMetrics[from]).severity;
+      const toSeverity = evaluateMetric(orderedMetrics[to]).severity;
+      if (fromSeverity !== toSeverity) {
+        this.showToast('Metrics stay grouped by alert priority. Reorder within a priority group.');
+      } else {
         const [moved] = orderedMetrics.splice(from, 1);
         orderedMetrics.splice(to, 0, moved);
-
         this.state.metrics = orderedMetrics;
-
         const grid = this.root.querySelector('.metrics-grid');
-
         if (grid) {
-            const cards = new Map(
-                [...grid.querySelectorAll('.metric-card')]
-                    .map(card => [card.dataset.metricId, card])
-            );
-
-            this.getMetricsInDisplayOrder().forEach(metric => {
-                const card = cards.get(metric.id);
-                if (card) grid.appendChild(card);
-            });
+          const cards = new Map([...grid.querySelectorAll('.metric-card')].map(card => [card.dataset.metricId, card]));
+          this.getMetricsInDisplayOrder().forEach(metric => {
+            const card = cards.get(metric.id);
+            if (card) grid.appendChild(card);
+          });
         }
-
         this.persist();
         this.showToast('Metric order saved.');
+      }
     }
-
     this.clearMetricDragState();
   }
 
@@ -666,13 +978,12 @@ export class App {
     if (action === 'assistant-expand-backdrop') this.toggleAssistantExpand();
     if (action === 'step-number') this.stepNumber(button);
     if (action === 'navigate') {
-      if (this.view === 'debug' && button.dataset.view !== 'debug') this.debugSession = false;
       this.view = button.dataset.view;
+      if (this.view === 'debug') this.terminalLines = this.terminalLines.length ? this.terminalLines : ['ORBIT HEALTH / LOCAL DIAGNOSTICS', 'Debug console opened. Type \"help\" to list commands.'];
       if (this.view === 'crew') { const selectedIndex = this.getCrewSnapshot().findIndex(member => member.id === this.state.selectedCrewId); if (selectedIndex >= 0) this.crewSummaryIndex = selectedIndex; this.crewSummaryIndexTouched = false; }
       this.render();
     }
-    if (action === 'open-debug') this.openDebugGate();
-    if (action === 'close-debug-gate') this.closeModal();
+    if (action === 'skip-day') this.skipDay();
     if (action === 'crew-nav') {
       const total = this.getCrewSnapshot().length;
       this.crewSummaryIndex = (this.crewSummaryIndex + Number(button.dataset.step) + total) % total;
@@ -685,14 +996,10 @@ export class App {
     }
     if (action === 'focus-crew') {
       this.state.selectedCrewId = button.dataset.id;
-      const focused = this.getFocusedCrew();
-      this.expression = focused.id !== 'elena-voss'
-        ? (focused.status === 'normal' ? 'neutral' : 'frown')
-        : this.getAlerts().some(item => item.severity === 'critical') ? 'alert' : this.getAlerts().length ? 'frown' : 'neutral';
+      this.syncAssistantExpression();
       this.persist();
       this.view = 'overview';
-      this.debugSession = false;
-      this.render();
+        this.render();
       this.showToast(`${this.getFocusedCrew().name} is now the Crew Support focus.`);
     }
     if (action === 'view-metric') this.openMetricDetails(button.dataset.id);
@@ -757,29 +1064,18 @@ export class App {
   }
 
   handleSubmit(event) {
+    const crewChatForm = event.target.closest('#crew-chat-form');
+    if (crewChatForm) {
+      event.preventDefault();
+      const input = crewChatForm.elements.message;
+      this.sendCrewMessage(input.value);
+      return;
+    }
     const chatForm = event.target.closest('#assistant-chat-form');
     if (chatForm) {
       event.preventDefault();
       const input = chatForm.elements.message;
       this.askAssistant(input.value);
-      return;
-    }
-    const passwordForm = event.target.closest('#debug-password-form');
-    if (passwordForm) {
-      event.preventDefault();
-      const password = String(new FormData(passwordForm).get('password') || '');
-      const error = passwordForm.querySelector('#debug-gate-error');
-      if (password === 'obunga') {
-        this.debugSession = true;
-        this.view = 'debug';
-        this.closeModal();
-        this.terminalLines = ['ORBIT HEALTH / LOCAL DIAGNOSTICS', 'Debug session opened. Type "help" to list available commands.'];
-        this.render();
-      } else if (error) {
-        error.textContent = 'Incorrect password. Try again.';
-        passwordForm.elements.password.value = '';
-        passwordForm.elements.password.focus();
-      }
       return;
     }
     const terminalForm = event.target.closest('#terminal-form');
@@ -818,9 +1114,11 @@ export class App {
     const metric = {
       id, name, unit, value, kind: 'number', category: String(data.get('category') || 'Other'),
       icon: 'activity', color: 'blue', subtitle: 'Custom metric', updated: 'Just now', trend: [value],
+      chartType: String(data.get('chartType') || 'line') === 'column' ? 'column' : 'line',
       thresholds, isCustom: true
     };
     this.state.metrics.push(metric);
+    this.syncAssistantExpression();
     this.state.chatMessages = this.chatMessages;
     this.state.log.push(createLogEntry(metric, '—', `${value}${unit ? ` ${unit}` : ''}`, 'Metric added'));
     this.persist();
@@ -847,8 +1145,10 @@ export class App {
       if (!Number.isFinite(nextValue)) return this.showToast('Enter a valid numeric reading.');
     }
     metric.value = nextValue;
-    metric.trend = [...(metric.trend || []).slice(-6), metric.kind === 'blood-pressure' ? nextValue.systolic : metric.kind === 'mood' ? ({ Great: 4, Steady: 3, Low: 2, Strained: 1 }[nextValue] || 3) : Number(nextValue)];
+    if (metric.id === 'temperature') metric.dailyAverage = Number(nextValue);
+    metric.trend = [...(metric.trend || []).slice(-17), metric.kind === 'blood-pressure' ? nextValue.systolic : metric.kind === 'mood' ? ({ Great: 4, Steady: 3, Low: 2, Strained: 1 }[nextValue] || 3) : Number(nextValue)];
     metric.updated = 'Just now';
+    this.syncAssistantExpression();
     this.state.chatMessages = this.chatMessages;
     this.state.log.push(createLogEntry(metric, previous, formatMetricValue(metric)));
     this.persist();

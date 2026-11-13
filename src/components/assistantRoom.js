@@ -37,14 +37,7 @@ export function assistantRoom(expression = 'neutral', metrics = [], messages = [
   const history = messages.length ? messages : [{ role: 'assistant', text: 'Hello. I can summarize the selected crew member’s readings and list demo-threshold flags. What would you like to review?' }];
   const selectedName = focusedCrew?.name || 'Elena Voss';
   const signalLabel = focusedCrew?.connectivity === 'offline' ? 'NO SIGNAL' : focusedCrew?.connectivity === 'weak' ? 'WEAK LINK' : 'CONNECTED';
-  const expressionImages = {
-    neutral: './assets/ai_neutral.png',
-    smile: './assets/ai_smile.png',
-    frown: './assets/ai_frown.png',
-    alert: './assets/ai_alert.png'
-};
 
-  const previewImage = expressionImages[expression] || expressionImages.neutral;
   return `
     <button class="assistant-expand-backdrop" data-action="assistant-expand-backdrop" aria-label="Close expanded assistant" ${expanded ? '' : 'hidden'}></button>
     <section class="assistant-panel panel ${expanded ? 'assistant-panel--expanded' : ''}" aria-label="Crew Support" aria-modal="${expanded ? 'true' : 'false'}" role="${expanded ? 'dialog' : 'region'}">
@@ -59,15 +52,11 @@ export function assistantRoom(expression = 'neutral', metrics = [], messages = [
         <em class="focused-crew-signal focused-crew-signal--${escapeHTML(focusedCrew?.connectivity || 'connected')}">${signalLabel}</em>
       </div>
 
-      <div class="assistant-stage assistant-stage--${expression}" aria-label="Offline assistant model preview">
-        <div class="crt-screen-top"><span>AURA</span><span class="crt-screen-live"><i></i> preview</span></div>
+      <div class="assistant-stage assistant-stage--${expression}" aria-label="AURA model preview">
+        <div class="crt-screen-top"><span>AURA / NODE 01</span></div>
         <div class="crt-scanlines"></div><div class="crt-vignette"></div><div class="crt-flicker"></div>
         <div class="assistant-model-frame">
-            <img
-                src="${previewImage}"
-                class="assistant-custom-preview"
-                alt="AURA ${expression} expression"
-            />
+          <img src="./assets/ai_${expression}.png" class="assistant-custom-preview" alt="AURA ${expression} expression" onerror="this.hidden=true; this.nextElementSibling.hidden=false" />
         </div>
       </div>
 
