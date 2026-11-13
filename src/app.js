@@ -373,14 +373,55 @@ export class App {
     this.toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 2500);
   }
 
-  askAssistant(prompt) {
+  
+  
+
+
+
+
+  
+
+
+
+  async askModel(question, focused) {
+    const readings = this.getCrewMetricRows(focused)
+      .map(r => `${r.name}: ${r.value} (${r.severity})`).join('; ');
+    const system = `You are AURA, a friendly health assistant in a space crew demo app.
+Crew member in focus: ${focused.name} (${focused.role}). Readings: ${readings}.
+Answer in 1-3 short sentences using only these readings. You are not a doctor and must not diagnose.`;
+    const history = this.chatMessages.slice(-6).map(m => ({ role: m.role, content: m.text }));
+    const res = await fetch('/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ role: 'system', content: system }, ...history, { role: 'user', content: question }],
+        max_tokens: 200
+      })
+    });
+    if (!res.ok) throw new Error('AI server error');
+    return (await res.json()).choices[0].message.content.trim();
+  }
+
+
+
+
+
+
+
+
+
+  
+
+
+    async askAssistant(prompt) {
     const question = String(prompt || '').trim();
-    if (!question) return;
+    if (!question || this.aiBusy) return;
     const q = question.toLowerCase();
     const focused = this.getFocusedCrew();
     const alerts = this.getAlerts();
     let answer;
 
+    // Rule-based answer (used as fallback if the AI server is off)
     if (/summar|health|how am i|overall|status/.test(q)) {
       if (focused.id !== 'elena-voss') {
         const readings = focused.readings.map(([label, value]) => `${label}: ${value}`).join('; ');
@@ -411,10 +452,32 @@ export class App {
       } else {
         answer = match
           ? `${match.name} is recorded at ${formatMetricValue(match)} ${match.unit || ''}. Its current demo status is ${evaluateMetric(match).severity === 'normal' ? 'within configured ranges' : 'marked for review'} (${evaluateMetric(match).label}). I can summarize saved readings, but I cannot interpret them clinically.`
-          : `I’m focused on ${focused.name}. I can summarize the readings stored in this browser and list demo-threshold flags. Try asking for a health summary, current alerts, heart rate, blood pressure, sleep, or mood. This local preview is not connected to a language model.`;
+           : `I’m focused on ${focused.name}. I can summarize the readings stored in this browser and list demo-threshold flags. Try asking for a health summary, current alerts, heart rate, blood pressure, sleep, or mood.`;
       }
     }
 
+    // Show the user's message right away and clear the input
+    this.appendChatMessage('user', question);
+    const input = this.root.querySelector('#assistant-chat-input');
+    if (input) input.value = '';
+
+    // Placeholder while the model is thinking
+    this.aiBusy = true;
+    this.appendChatMessage('assistant', 'Thinking…');
+    const bubbles = this.root.querySelectorAll('#assistant-chat-messages .chat-message--assistant p');
+    const thinking = bubbles[bubbles.length - 1];
+
+    // Ask the local AI model, fall back to the rule-based answer on error
+    try {
+      answer = await this.askModel(question, focused);
+    } catch (err) {
+      console.warn('AI server unavailable, using rule-based answer.', err);
+    }
+    this.aiBusy = false;
+
+    if (thinking) thinking.textContent = answer;
+
+    // Save the conversation and update AURA's expression
     this.chatMessages.push({ role: 'user', text: question }, { role: 'assistant', text: answer });
     this.chatMessages = this.chatMessages.slice(-100);
     this.state.chatMessages = this.chatMessages;
@@ -424,15 +487,14 @@ export class App {
     this.persist();
     this.updateAssistantExpression();
 
-    this.appendChatMessage('user', question);
-    this.appendChatMessage('assistant', answer);
-    const input = this.root.querySelector('#assistant-chat-input');
-    if (input) {
-      input.value = '';
-      input.focus();
-    }
+    const messages = this.root.querySelector('#assistant-chat-messages');
+    if (messages) messages.scrollTo({ top: messages.scrollHeight, behavior: 'smooth' });
+    this.root.querySelector('#assistant-chat-input')?.focus();
   }
 
+
+
+  
   appendChatMessage(role, text) {
     const messages = this.root.querySelector('#assistant-chat-messages');
     if (!messages) return;
