@@ -47,7 +47,12 @@ export function metricGraph(metric) {
         return `<rect x="${barX.toFixed(1)}" y="${barY.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${Math.max(1, height-bottom-barY).toFixed(1)}" rx="1" class="metric-graph__bar"/>`;
       }).join('')
     : `<polygon points="${area}" class="metric-graph__area"/><path d="${linePath}" class="metric-graph__line" fill="none" stroke="#B6FF3B" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/><circle cx="${current.x}" cy="${current.y}" r="4" class="metric-graph__point"/>`;
-  return `<svg class="metric-graph metric-graph--${metric.chartType === 'column' ? 'column' : 'line'}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="${escapeHTML(metric.name)} ${metric.chartType === 'column' ? 'daily averages' : 'trend'} with configured upper and lower limits">
+  return `<svg
+    class="metric-graph metric-graph--${metric.chartType === 'column' ? 'column' : 'line'}"
+    style="--metric-accent: var(--${escapeHTML(metric.color || 'blue')})"
+    viewBox="0 0 ${width} ${height}"
+    preserveAspectRatio="none"
+    role="img" aria-label="${escapeHTML(metric.name)} ${metric.chartType === 'column' ? 'daily averages' : 'trend'} with configured upper and lower limits">
     ${[.25,.5,.75].map(frac => `<line x1="${left}" x2="${width-right}" y1="${top + frac*(height-top-bottom)}" y2="${top + frac*(height-top-bottom)}" class="metric-graph__grid"/>`).join('')}
     ${columns}${lowerLine}${upperLine}
   </svg>`;
