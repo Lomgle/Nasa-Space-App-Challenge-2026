@@ -1363,3 +1363,12 @@ body[data-theme="dark"] { background: #050805; }
     object-position: center;
     transform: translateY(36px);
 }
+
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
