@@ -6,6 +6,9 @@ import { metricCard } from './components/metricCard.js';
 import { assistantRoom } from './components/assistantRoom.js';
 import { metricDialog } from './components/metricDialog.js';
 import { metricDetailsDialog } from './components/metricDetails.js';
+const AURA_MEMORY_KEY = 'orbit-health-aura-memory-v1';
+const MAX_STORED_MESSAGES = 500;
+
 import { environmentPage } from './components/environment.js';
 import { crewCommsPage } from './components/crewComms.js';
 
@@ -32,9 +35,33 @@ const DEFAULT_ENVIRONMENT_HISTORY = {
 };
 
 const DEFAULT_CREW_CHAT = [
-  { id: 'seed-1', senderId: 'jun-park', senderName: 'Jun Park', senderInitials: 'JP', avatar: '👨🏻‍🚀', text: 'Systems check is complete on my side. Cabin telemetry looks steady.', time: '09:12' },
-  { id: 'seed-2', senderId: 'amara-okafor', senderName: 'Amara Okafor', senderInitials: 'AO', avatar: '👩🏾‍🚀', text: 'Copy. I will review the environmental readings after the next shift.', time: '09:18' },
-  { id: 'seed-3', senderId: 'mateo-ruiz', senderName: 'Mateo Ruiz', senderInitials: 'MR', avatar: '👨🏽‍🚀', text: 'Flight deck is ready. Let me know when the daily report is posted.', time: '09:21' }
+  {
+    id: 'seed-1',
+    senderId: 'jun-park',
+    senderName: 'Jun Park',
+    senderInitials: 'JP',
+    avatar: '👨🏻‍🚀',
+    text: 'Systems check is complete on my side. Cabin telemetry looks steady.',
+    time: '09:12'
+  },
+  {
+    id: 'seed-2',
+    senderId: 'amara-okafor',
+    senderName: 'Amara Okafor',
+    senderInitials: 'AO',
+    avatar: '👩🏾‍🚀',
+    text: 'Copy. I will review the environmental readings after the next shift.',
+    time: '09:18'
+  },
+  {
+    id: 'seed-3',
+    senderId: 'mateo-ruiz',
+    senderName: 'Mateo Ruiz',
+    senderInitials: 'MR',
+    avatar: '👨🏽‍🚀',
+    text: 'Flight deck is ready. Let me know when the daily report is posted.',
+    time: '09:21'
+  }
 ];
 
 function randomBetween(min, max, decimals = 1) {
@@ -43,10 +70,11 @@ function randomBetween(min, max, decimals = 1) {
 }
 
 function shortTime() {
-  return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date());
+  return new Intl.DateTimeFormat(undefined, {
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date());
 }
-
-
 export class App {
   constructor(root) {
     this.root = root;
@@ -55,7 +83,31 @@ export class App {
     this.expression = 'neutral';
     this.view = 'overview';
     this.sidebarCollapsed = true;
-    this.chatMessages = this.state.chatMessages || [];
+    // Load AURA's long-term memory
+    this.auraMemory = this.loadAuraMemory();
+
+    // Identify the currently focused crew member
+    this.activeMemoryCrewId =
+      this.state.selectedCrewId || 'elena-voss';
+
+    // Migrate existing conversation history if necessary
+    const oldMessages = Array.isArray(this.state.chatMessages)
+      ? this.state.chatMessages
+      : [];
+
+    if (
+      !this.auraMemory.personalChats[this.activeMemoryCrewId] &&
+      oldMessages.length
+    ) {
+      this.auraMemory.personalChats[this.activeMemoryCrewId] =
+        oldMessages;
+    }
+
+    // Load this crew member's personal conversation
+    this.chatMessages =
+      this.auraMemory.personalChats[this.activeMemoryCrewId] || [];
+
+    this.state.chatMessages = this.chatMessages;
     this.chatExpanded = false;
     this.terminalLines = [];
     this.crewSummaryIndex = 0;
@@ -450,14 +502,356 @@ export class App {
     this.toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 2500);
   }
 
-  askAssistant(prompt) {
+  //rantuff part
+
+  loadAuraMemory() {
+    const emptyMemory = {
+      version: 1,
+      personalChats: {},
+      personalNotes: {},
+      sharedNotes: []
+    };
+
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem(AURA_MEMORY_KEY) || 'null'
+      );
+
+      if (!saved || typeof saved !== 'object') {
+        return emptyMemory;
+      }
+
+      return {
+        version: 1,
+        personalChats: saved.personalChats || {},
+        personalNotes: saved.personalNotes || {},
+        sharedNotes: Array.isArray(saved.sharedNotes)
+          ? saved.sharedNotes
+          : []
+      };
+    } catch (error) {
+      console.warn('Could not load AURA memory:', error);
+      return emptyMemory;
+    }
+  }
+
+
+  // Save all AURA memory to browser storage
+  saveAuraMemory() {
+    try {
+      localStorage.setItem(
+        AURA_MEMORY_KEY,
+        JSON.stringify(this.auraMemory)
+      );
+    } catch (error) {
+      console.error('Could not save AURA memory:', error);
+    }
+  }
+
+
+  // Save conversation for the current crew member
+  savePersonalConversation(crewId = this.activeMemoryCrewId) {
+    if (!crewId) return;
+
+    this.auraMemory.personalChats[crewId] =
+      this.chatMessages.slice(-MAX_STORED_MESSAGES);
+
+    this.saveAuraMemory();
+  }
+
+
+  // Switch to another crew member's private conversation
+  switchPersonalConversation(crewId) {
+    this.savePersonalConversation(this.activeMemoryCrewId);
+
+    this.activeMemoryCrewId = crewId;
+
+    this.chatMessages =
+      this.auraMemory.personalChats[crewId] || [];
+
+    this.state.chatMessages = this.chatMessages;
+  }
+
+
+  // Add a personal or shared memory note
+  addAuraMemoryNote(scope, crewId, content) {
+    const note = {
+      text: content.trim(),
+      createdAt: new Date().toISOString()
+    };
+
+    if (scope === 'shared') {
+      this.auraMemory.sharedNotes.push(note);
+
+      // Keep the latest 100 shared notes
+      this.auraMemory.sharedNotes =
+        this.auraMemory.sharedNotes.slice(-100);
+
+    } else {
+      if (!this.auraMemory.personalNotes[crewId]) {
+        this.auraMemory.personalNotes[crewId] = [];
+      }
+
+      this.auraMemory.personalNotes[crewId].push(note);
+
+      // Keep the latest 100 personal notes
+      this.auraMemory.personalNotes[crewId] =
+        this.auraMemory.personalNotes[crewId].slice(-100);
+    }
+
+    this.saveAuraMemory();
+  }
+
+
+  // Retrieve recent and relevant older conversations
+  getRelevantConversation(question, crewId) {
+    const messages =
+      this.auraMemory.personalChats[crewId] || [];
+
+    const terms = [
+      ...new Set(
+        question.toLowerCase().match(/[a-z0-9]{3,}/g) || []
+      )
+    ];
+
+    const recentStart = Math.max(0, messages.length - 8);
+    const selected = new Map();
+
+    // Always include the most recent 8 messages
+    for (let i = recentStart; i < messages.length; i++) {
+      selected.set(i, messages[i]);
+    }
+
+    // Search older messages for relevant keywords
+    const olderMatches = [];
+
+    for (let i = 0; i < recentStart; i++) {
+      const message = messages[i];
+
+      const text = String(message.text || '').toLowerCase();
+
+      const score = terms.reduce(
+        (total, term) => total + (text.includes(term) ? 1 : 0),
+        0
+      );
+
+      if (score > 0) {
+        olderMatches.push({
+          index: i,
+          message,
+          score
+        });
+      }
+    }
+
+    // Include up to four relevant older messages
+    olderMatches
+      .sort((a, b) => b.score - a.score || b.index - a.index)
+      .slice(0, 4)
+      .forEach(item => {
+        selected.set(item.index, item.message);
+      });
+
+    // Return messages in chronological order
+    return [...selected.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([, message]) => ({
+        role: message.role,
+        content: message.text
+      }));
+  }
+
+
+  // Recognise explicit memory-saving commands
+  handleMemoryCommand(question, focused) {
+    const sharedMatch = question.match(
+      /^\s*remember for the crew\s*:\s*(.+)$/i
+    );
+
+    const personalMatch = question.match(
+      /^\s*remember for me\s*:\s*(.+)$/i
+    );
+
+    if (!sharedMatch && !personalMatch) {
+      return false;
+    }
+
+    const isShared = Boolean(sharedMatch);
+
+    const content = isShared
+      ? sharedMatch[1]
+      : personalMatch[1];
+
+    const scope = isShared ? 'shared' : 'personal';
+
+    this.appendChatMessage('user', question);
+
+    const input = this.root.querySelector('#assistant-chat-input');
+    if (input) input.value = '';
+
+    this.addAuraMemoryNote(
+      scope,
+      focused.id,
+      content
+    );
+
+    const answer = isShared
+      ? 'I have saved this information to shared crew memory. All crew profiles on this browser can access it.'
+      : 'I have saved this information to your personal memory. It will be available in your future conversations.';
+
+    this.appendChatMessage('assistant', answer);
+
+    this.chatMessages.push(
+      { role: 'user', text: question },
+      { role: 'assistant', text: answer }
+    );
+
+    this.chatMessages =
+      this.chatMessages.slice(-MAX_STORED_MESSAGES);
+
+    this.state.chatMessages = this.chatMessages;
+
+    this.savePersonalConversation(focused.id);
+    this.persist();
+
+    return true;
+  }
+
+  
+  buildContext(focused) {
+    const crew = this.getCrewSnapshot();
+
+    const fmt = rows => rows
+      .map(r => `${r.name}: ${r.value}${r.severity && r.severity !== 'normal' ? ` [${r.severity.toUpperCase()}: ${r.label}]` : ''}`)
+      .join('; ');
+
+    // Current crew member's readings
+    const focusReadings = fmt(this.getCrewMetricRows(focused));
+
+    // Other crew members
+    const others = crew
+      .filter(m => m.id !== focused.id)
+      .map(m => `- ${m.name} (${m.role}): ${m.statusLabel}, heart rate ${m.heartRate ?? 'n/a'} BPM, connection ${m.connectivity}`)
+      .join('\n');
+
+    // Alert limits
+    const ops = { lt: '<', gt: '>', lte: '<=', gte: '>=' };
+
+    const limits = this.state.metrics
+      .filter(m => m.thresholds?.length)
+      .map(m => `${m.name}: ${m.thresholds.map(t => `${t.label} (${ops[t.operator] || t.operator} ${t.value})`).join(', ')}`)
+      .join('; ');
+
+    // Recent activity
+    const recent = this.state.log.slice(-5)
+      .map(e => `${e.time}: ${e.metricName} ${e.previousValue} -> ${e.nextValue}`)
+      .join('\n') || 'none';
+
+    // Personal memories
+    const personalNotes =
+      (this.auraMemory.personalNotes[focused.id] || [])
+        .map(note => `- ${note.text}`)
+        .join('\n') || 'No personal memories saved.';
+
+    // Shared crew memories
+    const sharedNotes =
+      (this.auraMemory.sharedNotes || [])
+        .map(note => `- ${note.text}`)
+        .join('\n') || 'No shared crew memories saved.';
+
+    // Combine all website information
+    return `
+  Today: ${new Date().toLocaleDateString()}
+
+  FOCUSED CREW MEMBER:
+  ${focused.name} (${focused.role})
+  Status: ${focused.statusLabel}
+
+  CURRENT READINGS:
+  ${focusReadings}
+
+  OTHER CREW:
+  ${others}
+
+  ALERT LIMITS:
+  ${limits || 'None'}
+
+  RECENT ACTIVITY:
+  ${recent}
+
+  PERSONAL MEMORY FOR ${focused.name}:
+  ${personalNotes}
+
+  SHARED CREW MEMORY:
+  ${sharedNotes}
+  `;
+  }
+
+
+  
+  async askModel(question, focused) {
+    const system = `You are AURA, a friendly health assistant for a space crew demo app.
+
+  Use ONLY the website context below and the supplied conversation history.
+  If information is unavailable, say so.
+  Do not invent information.
+  Distinguish personal memories from shared crew memories.
+  Reply in 1-3 short sentences.
+  You are not a doctor and must not diagnose or give treatment advice.
+
+  ${this.buildContext(focused)}`;
+
+    const history = this.getRelevantConversation(
+      question,
+      focused.id
+    );
+
+    const res = await fetch('/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: system },
+          ...history,
+          { role: 'user', content: question }
+        ],
+        max_tokens: 200,
+        temperature: 0.3
+      })
+    });
+
+    if (!res.ok) {
+      throw new Error(`AI server error: ${res.status}`);
+    }
+
+    const data = await res.json();
+
+    const answer = data.choices?.[0]?.message?.content;
+
+    if (!answer) {
+      throw new Error('AI returned an empty response.');
+    }
+
+    return answer.trim();
+  }
+
+
+  async askAssistant(prompt) {
     const question = String(prompt || '').trim();
-    if (!question) return;
+    if (!question || this.aiBusy) return;
     const q = question.toLowerCase();
     const focused = this.getFocusedCrew();
+
+    // Process explicit memory-saving commands first
+    if (this.handleMemoryCommand(question, focused)) {
+      return;
+    }
+
     const alerts = this.getAlerts();
     let answer;
 
+    // Rule-based answer (used as fallback if the AI server is off)
     if (/summar|health|how am i|overall|status/.test(q)) {
       if (focused.id !== 'elena-voss') {
         const readings = focused.readings.map(([label, value]) => `${label}: ${value}`).join('; ');
@@ -488,25 +882,62 @@ export class App {
       } else {
         answer = match
           ? `${match.name} is recorded at ${formatMetricValue(match)} ${match.unit || ''}. Its current demo status is ${evaluateMetric(match).severity === 'normal' ? 'within configured ranges' : 'marked for review'} (${evaluateMetric(match).label}). I can summarize saved readings, but I cannot interpret them clinically.`
-          : `I’m focused on ${focused.name}. I can summarize the readings stored in this browser and list demo-threshold flags. Try asking for a health summary, current alerts, heart rate, blood pressure, sleep, or mood. This local preview is not connected to a language model.`;
+           : `I’m focused on ${focused.name}. I can summarize the readings stored in this browser and list demo-threshold flags. Try asking for a health summary, current alerts, heart rate, blood pressure, sleep, or mood.`;
       }
     }
 
-    this.chatMessages.push({ role: 'user', text: question }, { role: 'assistant', text: answer });
-    this.chatMessages = this.chatMessages.slice(-100);
+    // Show the user's message right away and clear the input
+    this.appendChatMessage('user', question);
+    const input = this.root.querySelector('#assistant-chat-input');
+    if (input) input.value = '';
+
+    // Placeholder while the model is thinking
+    this.aiBusy = true;
+    this.appendChatMessage('assistant', 'Thinking…');
+    const bubbles = this.root.querySelectorAll('#assistant-chat-messages .chat-message--assistant p');
+    const thinking = bubbles[bubbles.length - 1];
+
+    // Ask the local AI model, fall back to the rule-based answer on error
+    try {
+      answer = await this.askModel(question, focused);
+    } catch (err) {
+      console.warn('AI server unavailable, using rule-based answer.', err);
+    }
+    this.aiBusy = false;
+
+    if (thinking) thinking.textContent = answer;
+
+    // Add the latest conversation
+    this.chatMessages.push(
+      { role: 'user', text: question },
+      { role: 'assistant', text: answer }
+    );
+
+    // Keep the latest 500 messages
+    this.chatMessages = this.chatMessages.slice(
+      -MAX_STORED_MESSAGES
+    );
+
+    // Update application state
+    this.state.chatMessages = this.chatMessages;
+
+    // Save under the correct crew member
+    this.savePersonalConversation(focused.id);
+    this.persist();
+
+
     this.state.chatMessages = this.chatMessages;
     this.expression = this.getAssistantExpression();
     this.persist();
     this.updateAssistantExpression();
 
-    this.appendChatMessage('user', question);
-    this.appendChatMessage('assistant', answer);
-    const input = this.root.querySelector('#assistant-chat-input');
-    if (input) {
-      input.value = '';
-      input.focus();
-    }
+    const messages = this.root.querySelector('#assistant-chat-messages');
+    if (messages) messages.scrollTo({ top: messages.scrollHeight, behavior: 'smooth' });
+    this.root.querySelector('#assistant-chat-input')?.focus();
   }
+
+
+
 
   appendChatMessage(role, text) {
     const messages = this.root.querySelector('#assistant-chat-messages');
@@ -833,10 +1264,19 @@ export class App {
   factoryReset() {
     if (!window.confirm('Factory reset Orbit Health? This clears local readings, custom metrics, history, chat, and preferences.')) return;
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(AURA_MEMORY_KEY);
+
     this.state = loadState(DEFAULT_METRICS);
     this.initializeSimulationState();
+
+    this.auraMemory = this.loadAuraMemory();
+
+    this.activeMemoryCrewId =
+      this.state.selectedCrewId || 'elena-voss';
+
     this.chatMessages = [];
     this.state.chatMessages = [];
+
     this.state.crewChatMessages = structuredClone(DEFAULT_CREW_CHAT);
     this.expression = 'neutral';
     this.chatExpanded = false;
@@ -995,6 +1435,10 @@ export class App {
       if (index >= 0) { this.crewSummaryIndex = index; this.crewSummaryIndexTouched = true; this.render(); }
     }
     if (action === 'focus-crew') {
+
+      // Save previous conversation and load new crew member's chat
+      this.switchPersonalConversation(button.dataset.id);
+
       this.state.selectedCrewId = button.dataset.id;
       this.syncAssistantExpression();
       this.persist();
