@@ -905,7 +905,7 @@ export class App {
     } catch (err) {
       console.warn('AI server unavailable, using rule-based answer.', err);
     }
-        // Generate the voice first, so the text and the voice appear together
+           // Generate the voice first, so the text and the voice appear together
     let speech = null;
     try {
       speech = await prepareSpeech(answer);
@@ -916,6 +916,7 @@ export class App {
 
     if (thinking) thinking.textContent = answer;
     speech?.play()?.catch(error => console.warn('AURA audio playback failed:', error));
+
     // Add the latest conversation
     this.chatMessages.push(
       { role: 'user', text: question },
@@ -1444,7 +1445,7 @@ export class App {
       if (index >= 0) { this.crewSummaryIndex = index; this.crewSummaryIndexTouched = true; this.render(); }
     }
     if (action === 'focus-crew') {
-
+      stopSpeaking();
       // Save previous conversation and load new crew member's chat
       this.switchPersonalConversation(button.dataset.id);
 

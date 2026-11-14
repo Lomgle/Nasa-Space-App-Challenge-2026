@@ -1,19 +1,27 @@
-const TTS_URL = 'http://127.0.0.1:8081/v1/audio/speech';
-const TTS_VOICE = 'vivian';
+const KOKORO_URL = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm';
+const MODEL_ID = 'onnx-community/Kokoro-82M-v1.0-ONNX';
+const VOICE = 'af_sky';   // try af_bella, af_sky, af_nicole
 
+let tts = null;
+let loading = null;
 let currentAudio = null;
-let currentAudioUrl = null;
+let currentUrl = null;
 let requestId = 0;
 
+function loadModel() {
+  if (!loading) {
+    loading = import(KOKORO_URL)
+      .then(({ KokoroTTS }) => KokoroTTS.from_pretrained(MODEL_ID, { dtype: 'q8', device: 'wasm' }))
+      .then(model => { tts = model; console.log('AURA voice ready'); })
+      .catch(err => { loading = null; console.warn('AURA voice failed to load:', err); });
+  }
+  return loading;
+}
+loadModel();
+
 function releaseAudio() {
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio = null;
-  }
-  if (currentAudioUrl) {
-    URL.revokeObjectURL(currentAudioUrl);
-    currentAudioUrl = null;
-  }
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  if (currentUrl) { URL.revokeObjectURL(currentUrl); currentUrl = null; }
 }
 
 export function stopSpeaking() {
@@ -21,67 +29,29 @@ export function stopSpeaking() {
   releaseAudio();
 }
 
-// Generates the audio but does NOT play it yet.
-// Returns { play() }, or null if there is nothing to say.
-export async function prepareSpeech(text, timeoutMs = 20000) {
-  const message = String(text || '')
-    .replace(/[\p{Extended_Pictographic}*_#`]/gu, '')
-    .trim();
+export async function prepareSpeech(text) {
+  if (!tts) return null;
+  const message = String(text || '').replace(/[\p{Extended_Pictographic}*_#`]/gu, '').trim();
   if (!message) return null;
 
   const thisRequest = requestId;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const audio = await tts.generate(message, { voice: VOICE });
+  if (thisRequest !== requestId) return null;
 
-  try {
-    const response = await fetch(TTS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify({
-        input: message,
-        voice: TTS_VOICE,
-        language: 'English',
-        response_format: 'wav'
-      })
-    });
-
-    if (!response.ok) throw new Error(`TTS server error: ${response.status}`);
-
-    const blob = await response.blob();
-    if (thisRequest !== requestId) return null; // a newer request replaced this one
-
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    audio.preload = 'auto';
-
-    return {
-      play() {
-        if (thisRequest !== requestId) {
-          URL.revokeObjectURL(url);
-          return Promise.resolve();
-        }
-        releaseAudio();
-        currentAudio = audio;
-        currentAudioUrl = url;
-        const cleanup = () => {
-          if (currentAudio === audio) {
-            currentAudio = null;
-            currentAudioUrl = null;
-          }
-          URL.revokeObjectURL(url);
-        };
-        audio.addEventListener('ended', cleanup, { once: true });
-        audio.addEventListener('error', cleanup, { once: true });
-        return audio.play();
-      }
-    };
-  } finally {
-    clearTimeout(timer);
-  }
+  const url = URL.createObjectURL(audio.toBlob());
+  const el = new Audio(url);
+  return {
+    play() {
+      if (thisRequest !== requestId) { URL.revokeObjectURL(url); return Promise.resolve(); }
+      releaseAudio();
+      currentAudio = el;
+      currentUrl = url;
+      el.addEventListener('ended', () => { if (currentAudio === el) releaseAudio(); }, { once: true });
+      return el.play();
+    }
+  };
 }
 
-// Still available if you want the old "generate and play" behaviour elsewhere.
 export async function speakText(text) {
   const speech = await prepareSpeech(text);
   if (speech) await speech.play();
