@@ -946,11 +946,11 @@ align-items: center;
 }
 
 .section-heading--compact h2 {
-font-size: 15.12px;
+font-size: 18px;
 }
 
 .section-heading--compact .eyebrow {
-font-size: 7.56px;
+font-size: 10px;
 margin-bottom: 5.4px;
 }
 
@@ -4211,7 +4211,7 @@ text-align: left;
 .activity-table th {
 color: var(--muted);
 background: var(--surface-soft);
-font-size: 8.64px;
+font-size: 14px;
 font-weight: 700;
 letter-spacing: 0.38px;
 text-transform: uppercase;
@@ -4222,7 +4222,7 @@ padding: 11.88px 12.96px;
 border-bottom: 1.08px solid var(--line);
 padding: 12.96px;
 color: var(--muted-strong);
-font-size: 9.72px;
+font-size: 12px;
 white-space: nowrap;
 }
 
