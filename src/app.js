@@ -19,6 +19,8 @@ const MAX_STORED_MESSAGES = 500;
 
 import { environmentPage } from "./components/environment.js";
 import { crewCommsPage } from "./components/crewComms.js";
+import { importDataPage } from "./components/importData.js";
+import { mergeCSVFiles, parseCSV, serializeCSV } from "./lib/csv.js";
 
 const DEFAULT_ENVIRONMENT = {
   radiation: { value: 0.18, dangerLimit: 0.5, unit: "µSv/h" },
@@ -119,6 +121,9 @@ export class App {
     this.crewSummaryIndex = 0;
     this.draggedMetricId = null;
     this.toastTimer = null;
+    this.importData = null;
+    this.importDataPage = 0;
+    this.importDataStatus = "";
     this.root.addEventListener("click", (event) => this.handleClick(event));
     this.root.addEventListener("submit", (event) => this.handleSubmit(event));
     this.root.addEventListener("change", (event) => this.handleChange(event));
@@ -143,6 +148,7 @@ export class App {
       }
     });
     this.expression = this.getAssistantExpression();
+    this.loadImportedData();
   }
 
   initializeSimulationState() {
@@ -299,6 +305,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
         environment: "Environment",
         activity: "Activity log",
         debug: "Debug",
+        import: "Import data",
       }[this.view] || "Crew overview";
 
     this.root.innerHTML = `
@@ -314,6 +321,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
             <button class="nav-item ${this.view === "crew" ? "is-active" : ""}" data-action="navigate" data-view="crew" title="Crew summary">${icon("users", 18)}<span>Crew summary</span><span class="nav-count">04</span></button>
             <button class="nav-item ${this.view === "comms" ? "is-active" : ""}" data-action="navigate" data-view="comms" title="Crew comms">${icon("messageCircle", 18)}<span>Crew comms</span><span class="nav-count">${this.state.crewChatMessages.length}</span></button>
             <button class="nav-item ${this.view === "environment" ? "is-active" : ""}" data-action="navigate" data-view="environment" title="Environment">${icon("activity", 18)}<span>Environment</span></button>
+            <button class="nav-item ${this.view === "import" ? "is-active" : ""}" data-action="navigate" data-view="import" title="Import data">${icon("database", 18)}<span>Import data</span></button>
             <button class="nav-item ${this.view === "activity" ? "is-active" : ""}" data-action="navigate" data-view="activity" title="Activity log">${icon("clock", 18)}<span>Activity log</span><span class="nav-count">${activityCount}</span></button>
             <button class="nav-item ${this.view === "debug" ? "is-active" : ""}" data-action="navigate" data-view="debug" title="Debug">${icon("terminal", 18)}<span>Debug</span></button>
           </nav>
@@ -346,7 +354,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
             </div>
           </header>
 
-          ${this.view === "overview" ? this.renderOverview({ date }) : this.view === "crew" ? this.renderCrew({ date }) : this.view === "comms" ? this.renderCrewComms() : this.view === "environment" ? this.renderEnvironment({ date }) : this.view === "debug" ? this.renderDebug({ date }) : this.renderActivity({ date })}
+          ${this.view === "overview" ? this.renderOverview({ date }) : this.view === "crew" ? this.renderCrew({ date }) : this.view === "comms" ? this.renderCrewComms() : this.view === "environment" ? this.renderEnvironment({ date }) : this.view === "import" ? importDataPage({ dataset: this.importData, page: this.importDataPage, status: this.importDataStatus }) : this.view === "debug" ? this.renderDebug({ date }) : this.renderActivity({ date })}
           <footer class="page-footer"><span>ORBIT HEALTH <i>•</i> CREW MONITORING INTERFACE</span><span>Demo data · Local device storage</span></footer>
         </main>
         <div id="modal-root"></div>
@@ -1969,6 +1977,15 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
       }
       this.render();
     }
+    if (action === "import-page-prev") {
+      this.importDataPage = Math.max(0, this.importDataPage - 1);
+      this.render();
+    }
+    if (action === "import-page-next") {
+      const pageCount = Math.max(1, Math.ceil((this.importData?.rows?.length || 0) / 50));
+      this.importDataPage = Math.min(pageCount - 1, this.importDataPage + 1);
+      this.render();
+    }
     if (action === "skip-day") this.skipDay();
     if (action === "crew-nav") {
       const total = this.getCrewSnapshot().length;
@@ -2019,6 +2036,12 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
   }
 
   handleChange(event) {
+    if (event.target.id === "csv-upload") {
+      const files = [...(event.target.files || [])];
+      event.target.value = "";
+      this.handleCSVUpload(files);
+      return;
+    }
     if (event.target.id === "avatar-upload") {
       this.handleAvatarUpload(event.target.files?.[0]);
       return;
@@ -2035,6 +2058,106 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
             button.disabled = threshold.disabled;
           });
       }
+    }
+  }
+
+  async loadImportedData() {
+    try {
+      const response = await fetch("/api/import-data", { cache: "no-store" });
+      if (response.status === 404) return;
+      if (!response.ok) return;
+      const saved = await response.json();
+      const parsed = parseCSV(saved.csv);
+      this.importData = {
+        ...parsed,
+        sourceFiles: Array.isArray(saved.sourceFiles) ? saved.sourceFiles : ["merged.csv"],
+        importedAt: saved.importedAt || null,
+        savedToRawData: true,
+      };
+      this.importDataPage = 0;
+      if (this.view === "import") this.render();
+    } catch {
+      // Static hosts and basic file servers do not provide the local save API.
+      // Uploads still work in-session and can be downloaded as a merged CSV.
+    }
+  }
+
+  downloadMergedCSV(csv) {
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "merged.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async handleCSVUpload(files) {
+    if (!files.length) return;
+    const invalidFile = files.find((file) => !file.name.toLowerCase().endsWith(".csv"));
+    if (invalidFile) {
+      this.importDataStatus = `"${invalidFile.name}" is not a CSV file.`;
+      this.render();
+      return;
+    }
+    const totalBytes = files.reduce((total, file) => total + file.size, 0);
+    if (totalBytes > 20 * 1024 * 1024) {
+      this.importDataStatus = "The selected files exceed the 20 MB upload limit.";
+      this.render();
+      return;
+    }
+
+    this.importDataStatus = `Reading ${files.length} CSV file${files.length === 1 ? "" : "s"}…`;
+    this.render();
+
+    try {
+      const inputs = await Promise.all(files.map(async (file) => ({
+        name: file.name,
+        content: await file.text(),
+      })));
+      const merged = mergeCSVFiles(inputs);
+      const csv = serializeCSV(merged.headers, merged.rows);
+      const importedAt = new Date().toISOString();
+      this.importData = {
+        headers: merged.headers,
+        rows: merged.rows,
+        sourceFiles: merged.sourceFiles,
+        importedAt,
+        savedToRawData: false,
+      };
+      this.importDataPage = 0;
+      this.importDataStatus = `Merged ${files.length} file${files.length === 1 ? "" : "s"}; ${merged.rows.length.toLocaleString()} data row${merged.rows.length === 1 ? "" : "s"} loaded.`;
+      this.render();
+
+      try {
+        const response = await fetch("/api/import-data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            csv,
+            sourceFiles: merged.sourceFiles,
+            rowCount: merged.rows.length,
+          }),
+        });
+        if (!response.ok) throw new Error(`Local save endpoint returned ${response.status}.`);
+        const saved = await response.json();
+        this.importData.savedToRawData = true;
+        this.importData.importedAt = saved.importedAt || importedAt;
+        this.importDataStatus = `Merged ${files.length} file${files.length === 1 ? "" : "s"}; ${merged.rows.length.toLocaleString()} rows saved to raw_data/merged.csv.`;
+        this.render();
+        this.showToast("CSV data saved to raw_data/merged.csv.");
+      } catch {
+        this.downloadMergedCSV(csv);
+        this.importDataStatus = "CSV merged and displayed. This server cannot write into the project folder, so merged.csv was downloaded; move it into raw_data/ to store it there.";
+        this.render();
+        this.showToast("Merged CSV downloaded. Move it into the raw_data folder.");
+      }
+    } catch (error) {
+      this.importDataStatus = error.message || "The selected CSV files could not be read.";
+      this.render();
+      this.showToast(this.importDataStatus);
     }
   }
 
