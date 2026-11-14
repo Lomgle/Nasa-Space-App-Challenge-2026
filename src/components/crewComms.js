@@ -20,12 +20,11 @@ export function crewCommsPage({ messages, crew, profileAvatar }) {
   return `
     <section class="page-header comms-page-header"><div><div class="eyebrow">EXPEDITION 07 <span>·</span> INTERNAL CHANNEL</div><h1>Crew comms</h1><p class="page-subtitle">One shared channel for the crew · messages saved on this device</p></div><span class="comms-channel-tag">${icon('users', 15)} CREW / GENERAL</span></section>
     <section class="crew-comms-layout">
-      <aside class="crew-comms-roster panel"><div class="comms-roster-heading"><div class="eyebrow">CHANNEL MEMBERS</div><b>${crew.length} CREW MEMBERS</b></div>${members}<div class="comms-roster-note">Connectivity is simulated locally and may change after skipping a day.</div></aside>
+      <aside class="crew-comms-roster panel"><div class="comms-roster-heading"><div class="eyebrow">CHANNEL MEMBERS</div><b>${crew.length} CREW MEMBERS</b></div>${members}</aside>
       <section class="crew-comms-panel panel" aria-label="Shared crew group chat">
         <div class="crew-comms-panel-heading"><div><div class="eyebrow">SHARED GROUP CHAT</div><h2>Mission channel</h2></div><span class="comms-encryption-label">LOCAL / MOCK CHANNEL</span></div>
         <div class="crew-comms-messages" id="crew-comms-messages" aria-live="polite">${chat}</div>
         <form class="crew-comms-compose" id="crew-chat-form"><label class="sr-only" for="crew-chat-input">Message the crew</label><input id="crew-chat-input" name="message" maxlength="500" autocomplete="off" placeholder="Message the crew…" required/><button type="submit" aria-label="Send to crew">${icon('arrow', 17)}</button></form>
-        <p class="crew-comms-disclaimer">Offline prototype · This is not a real communications system.</p>
       </section>
     </section>`;
 }
