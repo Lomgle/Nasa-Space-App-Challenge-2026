@@ -27,6 +27,7 @@ export function metricDialog(metric = null) {
     <label class="field"><span>Metric name</span><input name="name" required maxlength="32" placeholder="e.g. Hydration" /></label>
     <div class="form-grid"><label class="field"><span>Unit</span><input name="unit" maxlength="12" placeholder="e.g. L, kg, bpm" /></label><label class="field"><span>Category</span><select name="category">${METRIC_CATEGORIES.map(c => `<option>${escapeHTML(c)}</option>`).join('')}</select></label></div>
     <label class="field"><span>Current value</span>${numberControl({ name: 'value', step: 'any' })}</label>
+    <label class="field"><span>Chart display</span><select name="chartType"><option value="line" selected>Line chart</option><option value="column">Column chart</option></select></label>
     <div class="form-grid"><label class="field"><span>Lower limit <small>(optional)</small></span>${numberControl({ name: 'lowerLimit', step: 'any', placeholder: 'No lower limit', required: false })}</label><label class="field"><span>Upper limit <small>(optional)</small></span>${numberControl({ name: 'upperLimit', step: 'any', placeholder: 'No upper limit', required: false })}</label></div>
     <p class="field-hint">Limits are local demo settings. They are visual and alert rules only, not medical guidance.</p>`;
   return `

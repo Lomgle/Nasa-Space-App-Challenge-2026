@@ -9,7 +9,12 @@ export function loadState(fallbackMetrics) {
     log: [],
     chatMessages: [],
     selectedCrewId: 'elena-voss',
-    profileAvatar: '👩🏻‍🚀'
+    profileAvatar: '👩🏻‍🚀',
+    crewChatMessages: [],
+    daysElapsed: 0,
+    crewSnapshots: null,
+    environment: null,
+    environmentHistory: null
   });
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -23,7 +28,7 @@ export function loadState(fallbackMetrics) {
       const addedDemoBounds = (base.thresholds || []).filter(rule =>
         !currentRules.some(existing => existing.field === rule.field && existing.operator === rule.operator)
       );
-      return { ...base, ...metric, thresholds: [...currentRules, ...addedDemoBounds] };
+      return { ...base, ...metric, chartType: metric.chartType || base.chartType || (metric.id === 'temperature' ? 'column' : 'line'), thresholds: [...currentRules, ...addedDemoBounds] };
     });
     return {
       metrics,
@@ -34,7 +39,12 @@ export function loadState(fallbackMetrics) {
         ? parsed.chatMessages.filter(message => message && ['user', 'assistant'].includes(message.role) && typeof message.text === 'string').slice(-100)
         : [],
       selectedCrewId: typeof parsed.selectedCrewId === 'string' ? parsed.selectedCrewId : 'elena-voss',
-      profileAvatar: typeof parsed.profileAvatar === 'string' ? parsed.profileAvatar : '👩🏻‍🚀'
+      profileAvatar: typeof parsed.profileAvatar === 'string' ? parsed.profileAvatar : '👩🏻‍🚀',
+      crewChatMessages: Array.isArray(parsed.crewChatMessages) ? parsed.crewChatMessages.filter(message => message && typeof message.text === 'string').slice(-200) : [],
+      daysElapsed: Number.isFinite(Number(parsed.daysElapsed)) ? Math.max(0, Math.floor(Number(parsed.daysElapsed))) : 0,
+      crewSnapshots: Array.isArray(parsed.crewSnapshots) ? parsed.crewSnapshots : null,
+      environment: parsed.environment && typeof parsed.environment === 'object' ? parsed.environment : null,
+      environmentHistory: parsed.environmentHistory && typeof parsed.environmentHistory === 'object' ? parsed.environmentHistory : null
     };
   } catch {
     return fresh();
