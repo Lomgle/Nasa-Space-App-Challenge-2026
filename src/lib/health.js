@@ -14,7 +14,9 @@ export function loadState(fallbackMetrics) {
     daysElapsed: 0,
     crewSnapshots: null,
     environment: null,
-    environmentHistory: null
+    environmentHistory: null,
+    files: [],
+    FileImportAuto: true
   });
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -44,7 +46,9 @@ export function loadState(fallbackMetrics) {
       daysElapsed: Number.isFinite(Number(parsed.daysElapsed)) ? Math.max(0, Math.floor(Number(parsed.daysElapsed))) : 0,
       crewSnapshots: Array.isArray(parsed.crewSnapshots) ? parsed.crewSnapshots : null,
       environment: parsed.environment && typeof parsed.environment === 'object' ? parsed.environment : null,
-      environmentHistory: parsed.environmentHistory && typeof parsed.environmentHistory === 'object' ? parsed.environmentHistory : null
+      environmentHistory: parsed.environmentHistory && typeof parsed.environmentHistory === 'object' ? parsed.environmentHistory : null,
+      files: Array.isArray(parsed.files) ? parsed.files : [],
+      fileImportAuto: parsed.fileImportAuto !== false
     };
   } catch {
     return fresh();

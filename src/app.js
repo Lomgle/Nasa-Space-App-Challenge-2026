@@ -6,6 +6,8 @@ import { metricCard } from './components/metricCard.js';
 import { assistantRoom } from './components/assistantRoom.js';
 import { metricDialog } from './components/metricDialog.js';
 import { metricDetailsDialog } from './components/metricDetails.js';
+import { filesPage } from './components/file_directory.js';
+import { collectDropped, collectPicked, analyzeFile, importEntries } from './lib/file_import.js';
 const AURA_MEMORY_KEY = 'orbit-health-aura-memory-v1';
 const MAX_STORED_MESSAGES = 500;
 
@@ -113,6 +115,17 @@ export class App {
     this.crewSummaryIndex = 0;
     this.draggedMetricId = null;
     this.toastTimer = null;
+    this.fileFolder = '';
+    this.fileKind = 'all';
+    this.recentlyImported = new Set();
+    this.revealObserver = null;
+    this.dragDepth = 0;
+    this.dropOverlay = document.createElement('div');
+    this.dropOverlay.className = 'file-drop-overlay';
+    this.dropOverlay.innerHTML = `<div>${icon('upload', 34)}<b>Drop to import</b><span>Files or folders · CSV and JSON readings go straight to the dashboard</span></div>`;
+    document.body.append(this.dropOverlay);
+    ['dragenter', 'dragover', 'dragleave'].forEach(type => window.addEventListener(type, event => this.handleFileDrag(event)));
+    window.addEventListener('drop', event => this.handleFileDrop(event));
     this.root.addEventListener('click', event => this.handleClick(event));
     this.root.addEventListener('submit', event => this.handleSubmit(event));
     this.root.addEventListener('change', event => this.handleChange(event));
@@ -216,7 +229,7 @@ export class App {
     this.expression = this.getAssistantExpression();
     const activityCount = this.state.log.length;
     if (this.view === 'crew') { const selectedIndex = this.getCrewSnapshot().findIndex(member => member.id === this.state.selectedCrewId); if (selectedIndex >= 0 && !this.crewSummaryIndexTouched) this.crewSummaryIndex = selectedIndex; }
-    const viewTitle = ({ overview: 'Crew overview', crew: 'Crew summary', comms: 'Crew comms', environment: 'Environment', activity: 'Activity log', debug: 'Debug' })[this.view] || 'Crew overview';
+    const viewTitle = ({ overview: 'Crew overview', crew: 'Crew summary', comms: 'Crew comms', environment: 'Environment', files: 'File directory', activity: 'Activity log', debug: 'Debug' })[this.view] || 'Crew overview';
 
     this.root.innerHTML = `
       <div class="app-shell ${this.sidebarCollapsed ? 'sidebar-collapsed' : ''}" data-theme="dark">
@@ -231,6 +244,7 @@ export class App {
             <button class="nav-item ${this.view === 'crew' ? 'is-active' : ''}" data-action="navigate" data-view="crew" title="Crew summary">${icon('users', 18)}<span>Crew summary</span><span class="nav-count">04</span></button>
             <button class="nav-item ${this.view === 'comms' ? 'is-active' : ''}" data-action="navigate" data-view="comms" title="Crew comms">${icon('messageCircle', 18)}<span>Crew comms</span><span class="nav-count">${this.state.crewChatMessages.length}</span></button>
             <button class="nav-item ${this.view === 'environment' ? 'is-active' : ''}" data-action="navigate" data-view="environment" title="Environment">${icon('activity', 18)}<span>Environment</span></button>
+            <button class="nav-item ${this.view === 'files' ? 'is-active' : ''}" data-action="navigate" data-view="files" title="File directory">${icon('folder', 18)}<span>File directory</span><span class="nav-count">${this.state.files.length}</span></button>
             <button class="nav-item ${this.view === 'activity' ? 'is-active' : ''}" data-action="navigate" data-view="activity" title="Activity log">${icon('clock', 18)}<span>Activity log</span><span class="nav-count">${activityCount}</span></button>
             <button class="nav-item ${this.view === 'debug' ? 'is-active' : ''}" data-action="navigate" data-view="debug" title="Debug">${icon('terminal', 18)}<span>Debug</span></button>
           </nav>
@@ -263,13 +277,15 @@ export class App {
             </div>
           </header>
 
-          ${this.view === 'overview' ? this.renderOverview({ date }) : this.view === 'crew' ? this.renderCrew({ date }) : this.view === 'comms' ? this.renderCrewComms() : this.view === 'environment' ? this.renderEnvironment({ date }) : this.view === 'debug' ? this.renderDebug({ date }) : this.renderActivity({ date })}
+          ${this.view === 'overview' ? this.renderOverview({ date }) : this.view === 'files' ? this.renderFiles({ date }) : this.view === 'crew' ? this.renderCrew({ date }) : this.view === 'comms' ? this.renderCrewComms() : this.view === 'environment' ? this.renderEnvironment({ date }) : this.view === 'debug' ? this.renderDebug({ date }) : this.renderActivity({ date })}
           <footer class="page-footer"><span>ORBIT HEALTH <i>•</i> CREW MONITORING INTERFACE</span><span>Demo data · Local device storage</span></footer>
         </main>
         <div id="modal-root"></div>
       </div>
       <div class="toast" id="toast" role="status" aria-live="polite"></div>`;
 
+    if (this.view === 'files') this.observeReveals();
+    if (this.view === 'overview' && this.recentlyImported.size) this.highlightImported();
     if (this.view === 'comms') {
       const messageBox = this.root.querySelector('#crew-comms-messages');
       if (messageBox) messageBox.scrollTop = messageBox.scrollHeight;
@@ -469,6 +485,86 @@ export class App {
         </aside>
       </section>
       <p class="debug-disclaimer">Debug is a local prototype utility. Commands affect only this browser’s mock data.</p>`;
+  }
+
+  renderFiles({ date }) {
+    return filesPage({ files: this.state.files, folder: this.fileFolder, kind: this.fileKind, auto: this.state.fileImportAuto !== false, date });
+  }
+
+  // Scroll-reveal: file rows animate in as they enter the viewport.
+  observeReveals() {
+    this.revealObserver?.disconnect();
+    const items = this.root.querySelectorAll('[data-reveal]');
+    if (!('IntersectionObserver' in window)) { items.forEach(el => el.classList.add('is-visible')); return; }
+    this.revealObserver = new IntersectionObserver(entries => entries.forEach(en => {
+      if (en.isIntersecting) { en.target.classList.add('is-visible'); this.revealObserver.unobserve(en.target); }
+    }), { threshold: 0.12 });
+    items.forEach(el => this.revealObserver.observe(el));
+  }
+
+  // Newly imported metrics pulse on the dashboard and scroll into view.
+  highlightImported() {
+    const cards = [...this.root.querySelectorAll('.metric-card')].filter(c => this.recentlyImported.has(c.dataset.id));
+    this.recentlyImported = new Set();
+    if (!cards.length) return;
+    cards.forEach(c => c.classList.add('is-imported'));
+    cards[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => cards.forEach(c => c.classList.remove('is-imported')), 4500);
+  }
+
+  handleFileDrag(event) {
+    if (!event.dataTransfer?.types?.includes('Files')) return;
+    event.preventDefault();
+    if (event.type === 'dragenter') this.dragDepth++;
+    if (event.type === 'dragleave') this.dragDepth = Math.max(0, this.dragDepth - 1);
+    document.body.classList.toggle('file-dragging', this.dragDepth > 0);
+  }
+
+  handleFileDrop(event) {
+    if (!event.dataTransfer?.types?.includes('Files')) return;
+    event.preventDefault();
+    this.dragDepth = 0;
+    document.body.classList.remove('file-dragging');
+    this.ingest(collectDropped(event.dataTransfer)); // must start synchronously inside the drop event
+  }
+
+  async ingest(pending) {
+    const items = (await pending).filter(({ file }) => !file.name.startsWith('.'));
+    if (!items.length) return this.showToast('No files found to import.');
+    this.showToast(`Reading ${items.length} file${items.length === 1 ? '' : 's'}…`);
+    const ids = new Set();
+    let created = 0, updated = 0;
+    for (const { file, path } of items) {
+      const info = await analyzeFile(file);
+      const slash = path.lastIndexOf('/');
+      const rec = { id: `file-${Date.now()}-${Math.random().toString(16).slice(2)}`, name: file.name, path, dir: slash > 0 ? path.slice(0, slash) : '',
+        size: file.size, kind: info.kind, addedAt: Date.now(), entries: info.entries.slice(0, 40), metricIds: [], created: 0, updated: 0 };
+      if (this.state.fileImportAuto !== false && rec.entries.length) {
+        const r = importEntries(this.state.metrics, this.state.log, rec.entries, file.name);
+        Object.assign(rec, { metricIds: r.ids, created: r.created, updated: r.updated });
+        created += r.created; updated += r.updated; r.ids.forEach(id => ids.add(id));
+      }
+      this.state.files = [rec, ...this.state.files.filter(f => f.path !== rec.path)].slice(0, 100);
+    }
+    this.recentlyImported = ids;
+    this.syncAssistantExpression();
+    const saved = this.persist();
+    this.render();
+    this.showToast(!saved ? 'Imported, but local storage is full: changes may not persist.'
+      : ids.size ? `Imported ${items.length} file${items.length === 1 ? '' : 's'}: ${created} new, ${updated} updated reading${created + updated === 1 ? '' : 's'}.`
+      : `Added ${items.length} file${items.length === 1 ? '' : 's'} to the directory.`);
+  }
+
+  reimportFile(id) {
+    const rec = this.state.files.find(f => f.id === id);
+    if (!rec) return;
+    const r = importEntries(this.state.metrics, this.state.log, rec.entries, rec.name);
+    Object.assign(rec, { metricIds: r.ids, created: r.created, updated: r.updated });
+    this.recentlyImported = new Set(r.ids);
+    this.syncAssistantExpression();
+    this.persist();
+    this.render();
+    this.showToast(r.ids.length ? `${r.ids.length} reading${r.ids.length === 1 ? '' : 's'} sent to the dashboard.` : 'No usable readings in this file.');
   }
 
   openModal(metric = null) {
@@ -1460,10 +1556,25 @@ export class App {
       this.terminalLines = [];
       this.updateTerminalOutput();
     }
+    if (action === 'files-folder') { this.fileFolder = button.dataset.folder || ''; this.render(); }
+    if (action === 'files-kind') { this.fileKind = button.dataset.kind || 'all'; this.render(); }
+    if (action === 'file-import') this.reimportFile(button.dataset.id);
+    if (action === 'file-remove') {
+      this.state.files = this.state.files.filter(f => f.id !== button.dataset.id);
+      this.persist(); this.render();
+      this.showToast('Removed from directory. Dashboard readings were kept.');
+    }
     if (action === 'factory-reset') this.factoryReset();
   }
 
   handleChange(event) {
+    if (event.target.id === 'file-import' || event.target.id === 'folder-import') {
+      const picked = collectPicked(event.target.files);
+      event.target.value = '';
+      this.ingest(Promise.resolve(picked));
+      return;
+    }
+    if (event.target.id === 'file-auto') { this.state.fileImportAuto = event.target.checked; this.persist(); return; }
     if (event.target.id === 'avatar-upload') { this.handleAvatarUpload(event.target.files?.[0]); return; }
     if (event.target.name === 'direction') {
       const threshold = this.root.querySelector('[name="threshold"]');
@@ -1612,3 +1723,6 @@ export class App {
     this.showToast(`${removed.name} removed.`);
   }
 }
+
+
+// Dang Dung's work
