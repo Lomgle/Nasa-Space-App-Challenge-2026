@@ -1,0 +1,7 @@
+<input id=q><button onclick=ask()>Send</button><p id=a></p>
+<script>
+async function ask(){
+  r=await fetch("/v1/chat/completions",{method:"POST",body:JSON.stringify({messages:[{role:"user",content:q.value}]})})
+  a.innerText=(await r.json()).choices[0].message.content
+}
+</script>
