@@ -1,3 +1,4 @@
+import { prepareSpeech, stopSpeaking } from './lib/tts.js';
 import { DEFAULT_METRICS } from './data/metricRegistry.js';
 import { DEMO_CREW } from './data/crewRegistry.js';
 import { STORAGE_KEY, loadState, saveState, evaluateMetric, formatMetricValue, createLogEntry, formatTimestamp } from './lib/health.js';
@@ -840,6 +841,7 @@ export class App {
   async askAssistant(prompt) {
     const question = String(prompt || '').trim();
     if (!question || this.aiBusy) return;
+    stopSpeaking();
     const q = question.toLowerCase();
     const focused = this.getFocusedCrew();
 
@@ -903,10 +905,17 @@ export class App {
     } catch (err) {
       console.warn('AI server unavailable, using rule-based answer.', err);
     }
+        // Generate the voice first, so the text and the voice appear together
+    let speech = null;
+    try {
+      speech = await prepareSpeech(answer);
+    } catch (error) {
+      console.warn('AURA speech generation failed:', error);
+    }
     this.aiBusy = false;
 
     if (thinking) thinking.textContent = answer;
-
+    speech?.play()?.catch(error => console.warn('AURA audio playback failed:', error));
     // Add the latest conversation
     this.chatMessages.push(
       { role: 'user', text: question },
