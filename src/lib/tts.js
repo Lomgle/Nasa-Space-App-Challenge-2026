@@ -1,6 +1,9 @@
+import { attachSpeakingFx } from './speakingFx.js';
+
 const KOKORO_URL = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm';
 const MODEL_ID = 'onnx-community/Kokoro-82M-v1.0-ONNX';
-const VOICE = 'af_sky';   // try af_bella, af_sky, af_nicole
+const VOICE = 'af_heart';   // try af_bella, af_sky, af_nicole
+const PITCH = 1.1;          // 1 = normal, higher = cuter
 
 let tts = null;
 let loading = null;
@@ -35,11 +38,16 @@ export async function prepareSpeech(text) {
   if (!message) return null;
 
   const thisRequest = requestId;
-  const audio = await tts.generate(message, { voice: VOICE });
+  const audio = await tts.generate(message, { voice: VOICE, speed: 1 / PITCH });
   if (thisRequest !== requestId) return null;
 
   const url = URL.createObjectURL(audio.toBlob());
   const el = new Audio(url);
+  el.preservesPitch = false;
+  el.playbackRate = PITCH;
+  console.log('attaching speaking effects');
+  attachSpeakingFx(el);
+
   return {
     play() {
       if (thisRequest !== requestId) { URL.revokeObjectURL(url); return Promise.resolve(); }

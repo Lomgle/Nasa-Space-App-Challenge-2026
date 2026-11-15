@@ -270,7 +270,7 @@ export class App {
         <div id="modal-root"></div>
       </div>
       <div class="toast" id="toast" role="status" aria-live="polite"></div>`;
-
+    this.ensureSpeakingGlow();
     if (this.view === 'comms') {
       const messageBox = this.root.querySelector('#crew-comms-messages');
       if (messageBox) messageBox.scrollTop = messageBox.scrollHeight;
@@ -962,8 +962,18 @@ export class App {
     messages.append(item);
     messages.scrollTo({ top: messages.scrollHeight, behavior: 'smooth' });
   }
-
+  ensureSpeakingGlow() {
+    const stage = this.root.querySelector('.assistant-stage');
+    if (!stage || stage.querySelector('.aura-speak-glow')) return;
+    if (getComputedStyle(stage).position === 'static') stage.style.position = 'relative';
+    stage.style.isolation = 'isolate';
+    const glow = document.createElement('div');
+    glow.className = 'aura-speak-glow';
+    glow.setAttribute('aria-hidden', 'true');
+    stage.prepend(glow);
+  }
   updateAssistantExpression() {
+    this.ensureSpeakingGlow();
     const stage = this.root.querySelector('.assistant-stage');
     const preview = this.root.querySelector('.assistant-custom-preview');
     const expressionImages = {
