@@ -2,13 +2,6 @@ export function escapeHTML(value = '') {
   return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 }
 
-export function formatAssistantMessage(value = '') {
-  return escapeHTML(value)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
-    .replace(/^[ \t]*[*-][ \t]+/gm, '&bull;&nbsp;');
-}
-
 const icons = {
   activity: '<path d="M3 12h4l2.2-6 4.2 12 2.1-6H21"/>',
   database: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/',

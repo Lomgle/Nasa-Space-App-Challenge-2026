@@ -1,5 +1,5 @@
-import { prepareSpeech, preloadSpeech, stopSpeaking } from "./lib/tts.js";
-import { DEFAULT_METRICS, DEMO_CREW, ELENA } from "./data/store.js";
+import { prepareSpeech, stopSpeaking } from "./lib/tts.js";
+import { DEFAULT_METRICS, DEMO_CREW, ELENA, DATA_OVERRIDE_KEY, hasDataOverride, buildDerived, getCurrentData, getMetricsDefinition, saveDataOverride } from "./data/store.js";
 import {
   STORAGE_KEY,
   loadState,
@@ -9,7 +9,7 @@ import {
   createLogEntry,
   formatTimestamp,
 } from "./lib/health.js";
-import { escapeHTML, formatAssistantMessage, icon } from "./lib/ui.js";
+import { escapeHTML, icon } from "./lib/ui.js";
 import { metricCard } from "./components/metricCard.js";
 import { assistantRoom } from "./components/assistantRoom.js";
 import { metricDialog } from "./components/metricDialog.js";
@@ -17,12 +17,12 @@ import { metricDetailsDialog } from "./components/metricDetails.js";
 import { expressionForAssistantText } from "./lib/assistantExpression.js";
 const AURA_MEMORY_KEY = "orbit-health-aura-memory-v1";
 const MAX_STORED_MESSAGES = 500;
-const IMPORT_STORAGE_KEY = "orbit-health-import-v1";
 
 import { environmentPage } from "./components/environment.js";
 import { crewCommsPage } from "./components/crewComms.js";
 import { importDataPage } from "./components/importData.js";
-import { mergeCSVFiles, parseCSV, serializeCSV } from "./lib/csv.js";
+import { mergeCSVFiles, serializeCSV } from "./lib/csv.js";
+import { buildHealthImport, IMPORT_COLUMNS, TEMPLATE_ROWS } from "./lib/healthImport.js";
 
 const DEFAULT_ENVIRONMENT = {
   radiation: { value: 0.18, dangerLimit: 0.5, unit: "µSv/h" },
@@ -126,6 +126,7 @@ export class App {
     this.importData = null;
     this.importDataPage = 0;
     this.importDataStatus = "";
+    this.importReview = null;
     this.root.addEventListener("click", (event) => this.handleClick(event));
     this.root.addEventListener("submit", (event) => this.handleSubmit(event));
     this.root.addEventListener("change", (event) => this.handleChange(event));
@@ -150,7 +151,6 @@ export class App {
       }
     });
     this.expression = this.getAssistantExpression();
-    this.loadImportedData();
   }
 
   initializeSimulationState() {
@@ -362,7 +362,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
             </div>
           </header>
 
-          ${this.view === "overview" ? this.renderOverview({ date }) : this.view === "crew" ? this.renderCrew({ date }) : this.view === "comms" ? this.renderCrewComms() : this.view === "environment" ? this.renderEnvironment({ date }) : this.view === "import" ? importDataPage({ dataset: this.importData, page: this.importDataPage, status: this.importDataStatus }) : this.view === "debug" ? this.renderDebug({ date }) : this.renderActivity({ date })}
+          ${this.view === "overview" ? this.renderOverview({ date }) : this.view === "crew" ? this.renderCrew({ date }) : this.view === "comms" ? this.renderCrewComms() : this.view === "environment" ? this.renderEnvironment({ date }) : this.view === "import" ? importDataPage({ dataset: this.importData, page: this.importDataPage, status: this.importDataStatus, review: this.importReview }) : this.view === "debug" ? this.renderDebug({ date }) : this.renderActivity({ date })}
           <footer class="page-footer"><span>ORBIT HEALTH <i>•</i> CREW MONITORING INTERFACE</span></footer>
         </main>
         <div id="modal-root"></div>
@@ -1203,7 +1203,7 @@ ${this.buildContext(focused)}`;
     }
     this.aiBusy = false;
 
-    if (thinking) thinking.innerHTML = formatAssistantMessage(answer);
+    if (thinking) thinking.textContent = answer;
     speech
       ?.play()
       ?.catch((error) => console.warn("Ms HOA audio playback failed:", error));
@@ -1244,9 +1244,7 @@ ${this.buildContext(focused)}`;
     const label = document.createElement("span");
     label.textContent = role === "user" ? "YOU" : "Ms HOA";
     const paragraph = document.createElement("p");
-    if (role === "assistant")
-      paragraph.innerHTML = formatAssistantMessage(text);
-    else paragraph.textContent = text;
+    paragraph.textContent = text;
     item.append(label, paragraph);
     messages.append(item);
     messages.scrollTo({ top: messages.scrollHeight, behavior: "smooth" });
@@ -1785,8 +1783,13 @@ ${this.buildContext(focused)}`;
     )
       return;
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(IMPORT_STORAGE_KEY);
     localStorage.removeItem(AURA_MEMORY_KEY);
+    if (hasDataOverride || localStorage.getItem(DATA_OVERRIDE_KEY)) {
+      // Imported CSV data replaced the shipped data/*.json; drop it and reload so the original files are read again.
+      localStorage.removeItem(DATA_OVERRIDE_KEY);
+      window.location.reload();
+      return;
+    }
 
     this.state = loadState(DEFAULT_METRICS);
     this.initializeSimulationState();
@@ -1859,9 +1862,6 @@ ${this.buildContext(focused)}`;
     button.title = label;
     button.innerHTML = icon(this.chatExpanded ? "shrink" : "expand", 16);
     if (this.chatExpanded) {
-      preloadSpeech().catch((error) =>
-        console.warn("Ms HOA speech preloading failed:", error),
-      );
       const messages = this.root.querySelector("#assistant-chat-messages");
       if (messages) messages.scrollTop = messages.scrollHeight;
       this.root.querySelector("#assistant-chat-input")?.focus();
@@ -2023,6 +2023,10 @@ ${this.buildContext(focused)}`;
       this.importDataPage = Math.min(pageCount - 1, this.importDataPage + 1);
       this.render();
     }
+    if (action === "import-apply") this.applyImportReview();
+    if (action === "import-discard") this.discardImportReview();
+    if (action === "download-import" && this.importData) this.downloadCSV(serializeCSV(this.importData.headers, this.importData.rows), "merged.csv");
+    if (action === "download-template") this.downloadCSV(serializeCSV(IMPORT_COLUMNS, TEMPLATE_ROWS), "health-import-template.csv");
     if (action === "skip-day") this.skipDay();
     if (action === "crew-nav") {
       const total = this.getCrewSnapshot().length;
@@ -2100,46 +2104,19 @@ ${this.buildContext(focused)}`;
     }
   }
 
-  async loadImportedData() {
-  let saved = null;
-  let fromServer = false;
-  try {
-    const response = await fetch("/api/import-data", { cache: "no-store" });
-    if (response.ok) {
-      saved = await response.json();
-      fromServer = true;
-    }
-  } catch {}
-  if (!saved) {
-    try {
-      saved = JSON.parse(localStorage.getItem(IMPORT_STORAGE_KEY) || "null");
-    } catch {
-      return;
-    }
-  }
-  if (!saved?.csv) return;
-  this.importData = {
-    ...parseCSV(saved.csv),
-    sourceFiles: Array.isArray(saved.sourceFiles) ? saved.sourceFiles : ["merged.csv"],
-    importedAt: saved.importedAt || null,
-    savedToRawData: fromServer,
-  };
-  this.importDataPage = 0;
-  if (this.view === "import") this.render();
-}
-
-  downloadMergedCSV(csv) {
+  downloadCSV(csv, filename) {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "merged.csv";
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
   }
 
+  /** Read the chosen CSV files, merge them, validate the result, and show a review. Nothing is applied yet. */
   async handleCSVUpload(files) {
     if (!files.length) return;
     const invalidFile = files.find((file) => !file.name.toLowerCase().endsWith(".csv"));
@@ -2155,6 +2132,7 @@ ${this.buildContext(focused)}`;
       return;
     }
 
+    this.importReview = null;
     this.importDataStatus = `Reading ${files.length} CSV file${files.length === 1 ? "" : "s"}…`;
     this.render();
 
@@ -2164,57 +2142,72 @@ ${this.buildContext(focused)}`;
         content: await file.text(),
       })));
       const merged = mergeCSVFiles(inputs);
-      const csv = serializeCSV(merged.headers, merged.rows);
-      const importedAt = new Date().toISOString();
       this.importData = {
         headers: merged.headers,
         rows: merged.rows,
         sourceFiles: merged.sourceFiles,
-        importedAt,
-        savedToRawData: false,
+        importedAt: new Date().toISOString(),
       };
       this.importDataPage = 0;
-      this.importDataStatus = `Merged ${files.length} file${files.length === 1 ? "" : "s"}; ${merged.rows.length.toLocaleString()} data row${merged.rows.length === 1 ? "" : "s"} loaded.`;
+      const current = { ...getCurrentData(), metrics: getMetricsDefinition() };
+      this.importReview = buildHealthImport(merged, current);
+      this.importDataStatus = this.importReview.ok
+        ? `Checked ${merged.rows.length.toLocaleString()} row${merged.rows.length === 1 ? "" : "s"} from ${files.length} file${files.length === 1 ? "" : "s"}. Nothing is applied until you confirm.`
+        : "This import has problems and cannot be applied. Fix the CSV and upload it again.";
       this.render();
-
-      try {
-        const response = await fetch("/api/import-data", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            csv,
-            sourceFiles: merged.sourceFiles,
-            rowCount: merged.rows.length,
-          }),
-        });
-        if (!response.ok) throw new Error(`Local save endpoint returned ${response.status}.`);
-        const saved = await response.json();
-        this.importData.savedToRawData = true;
-        this.importData.importedAt = saved.importedAt || importedAt;
-        this.importDataStatus = `Merged ${files.length} file${files.length === 1 ? "" : "s"}; ${merged.rows.length.toLocaleString()} rows saved to raw_data/merged.csv.`;
-        this.render();
-        this.showToast("CSV data saved to raw_data/merged.csv.");
-      } catch {
-        let stored = true;
-        try {
-        localStorage.setItem(
-            IMPORT_STORAGE_KEY,
-            JSON.stringify({ csv, sourceFiles: merged.sourceFiles, importedAt }),
-          );
-        } catch {
-          stored = false;
-        }
-        this.importDataStatus = stored
-          ? "CSV merged and stored in this browser. Use the download button to save merged.csv."
-          : "CSV merged and shown, but it is too large to store in this browser; it will be lost on reload. Use the download button to save merged.csv.";
-        this.render();
-        this.showToast("CSV merged. Click download to save it.");
-      }
     } catch (error) {
+      this.importData = null;
       this.importDataStatus = error.message || "The selected CSV files could not be read.";
       this.render();
       this.showToast(this.importDataStatus);
     }
+  }
+
+  /** Apply the reviewed import: store it as the new base data and refresh the dashboard state from it. */
+  applyImportReview() {
+    const review = this.importReview;
+    if (!review?.ok || !review.next) return;
+    if (!saveDataOverride(review.next)) {
+      this.importDataStatus = "The data could not be saved in this browser (storage full or blocked). Nothing was changed.";
+      this.render();
+      return;
+    }
+    const { defaultMetrics, demoCrew } = buildDerived(review.next.astronauts, review.next.health);
+    const fresh = new Map(defaultMetrics.map((metric) => [metric.id, metric]));
+    // Elena's cards take the imported current value and last-7-readings trend; customised thresholds/order are kept.
+    this.state.metrics = this.state.metrics.map((metric) => {
+      const update = fresh.get(metric.id);
+      if (!update) return metric;
+      const next = { ...metric, value: update.value, trend: update.trend, updated: update.updated };
+      if (metric.id === "temperature") next.dailyAverage = Number(update.value);
+      return next;
+    });
+    // Everyone else is rebuilt from their latest imported readings; the daily simulation randomises them from there.
+    this.state.crewSnapshots = structuredClone(demoCrew);
+    const { summary } = review;
+    this.state.log.push({
+      id: `import-${Date.now()}`,
+      metricId: "import",
+      metricName: "CSV import",
+      previousValue: "",
+      nextValue: `${summary.readings} readings`,
+      note: `CSV import applied · ${summary.added} added, ${summary.overwritten} overwritten`,
+      time: shortTime(),
+    });
+    this.state.log = this.state.log.slice(-500);
+    this.persist();
+    this.importReview = null;
+    this.importDataStatus = `Applied ${summary.readings} reading${summary.readings === 1 ? "" : "s"} (${summary.added} new, ${summary.overwritten} overwritten, ${summary.unchanged} unchanged). Factory reset in Debug restores the original data.`;
+    this.render();
+    this.showToast("Imported data applied.");
+  }
+
+  discardImportReview() {
+    this.importReview = null;
+    this.importData = null;
+    this.importDataPage = 0;
+    this.importDataStatus = "Import discarded. No data was changed.";
+    this.render();
   }
 
   handleAvatarUpload(file) {

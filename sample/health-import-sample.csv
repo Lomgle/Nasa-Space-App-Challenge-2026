@@ -1,0 +1,8 @@
+astronaut_id,astronaut_name,role,date,metric,value,systolic,diastolic
+elena-voss,,,2026-11-16,heart-rate,76,,
+elena-voss,,,2026-11-16,blood-pressure,,118,76
+elena-voss,,,2026-11-16,mood,Great,,
+elena-voss,,,2026-11-16,sleep,7.4,,
+jun-park,,,2026-11-16,heart-rate,71,,
+sam-lee,Sam Lee,Medical officer,2026-11-16,heart-rate,72,,
+sam-lee,,,2026-11-16,blood-pressure,,121,79

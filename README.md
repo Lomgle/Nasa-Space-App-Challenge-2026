@@ -10,4 +10,4 @@ Use Node.js 18 or newer, then run:
 npm start
 ```
 
-Open [http://127.0.0.1:4173](http://127.0.0.1:4173). The Import data page merges selected CSV files in the browser and previews the result. Use **Download merged CSV** to save a copy; imported data is session-only and does not change the health metrics.
+Import data (sidebar): upload one or more long-format CSVs (see `sample/health-import-sample.csv` or the **Download template CSV** button). The app validates the merged file and shows a review; **Apply** saves it in the browser as the new base data (overwriting matching astronaut + metric + date, creating new astronauts). Any invalid row blocks the whole import. **Factory reset** (Debug) removes imported data and restores `data/*.json`.

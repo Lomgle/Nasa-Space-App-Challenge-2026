@@ -6144,3 +6144,13 @@ body.aura-speaking .assistant-custom-preview + * {
 .crew-card b {
   font-size: 16px;
 }
+/* CSV import review */
+.import-review { margin: 16px 0; padding: 18px 20px; border-left: 3px solid var(--accent, #4ade80); }
+.import-review--error { border-left-color: #f87171; }
+.import-review h2 { margin: 4px 0 6px; }
+.import-review-list { margin: 10px 0; padding-left: 18px; max-height: 260px; overflow: auto; font-size: 0.9rem; }
+.import-review-list li { margin: 3px 0; }
+.import-review-note { opacity: 0.75; font-size: 0.85rem; }
+.import-review-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.import-upload-copy code { font-size: 0.8rem; word-break: break-word; }
+.import-upload-copy .button { margin-top: 10px; }
