@@ -1,0 +1,124 @@
+{
+  "categories": [
+    "Cardiovascular",
+    "Core vitals",
+    "Recovery",
+    "Body composition"
+  ],
+  "metrics": [
+    {
+      "id": "sleep",
+      "name": "Daily sleep",
+      "category": "Recovery",
+      "kind": "number",
+      "chartType": "line",
+      "unit": "h",
+      "icon": "moon",
+      "color": "indigo",
+      "subtitle": "Last sleep period",
+      "thresholds": [
+        {
+          "field": "value",
+          "operator": "lt",
+          "value": 6,
+          "severity": "warning",
+          "label": "Below configured sleep target"
+        },
+        {
+          "field": "value",
+          "operator": "gt",
+          "value": 10,
+          "severity": "warning",
+          "label": "Above configured demo range"
+        }
+      ],
+      "decimals": 1
+    },
+    {
+      "id": "systolic-change",
+      "name": "Systolic BP change",
+      "category": "Cardiovascular",
+      "kind": "number",
+      "chartType": "line",
+      "unit": "mmHg",
+      "icon": "activity",
+      "color": "blue",
+      "subtitle": "24 h average, in flight vs pre-flight",
+      "thresholds": []
+    },
+    {
+      "id": "diastolic-change",
+      "name": "Diastolic BP change",
+      "category": "Cardiovascular",
+      "kind": "number",
+      "chartType": "line",
+      "unit": "mmHg",
+      "icon": "activity",
+      "color": "blue",
+      "subtitle": "24 h average, in flight vs pre-flight",
+      "thresholds": []
+    },
+    {
+      "id": "cardiac-output-change",
+      "name": "Cardiac output change",
+      "category": "Cardiovascular",
+      "kind": "number",
+      "chartType": "line",
+      "unit": "%",
+      "icon": "heart",
+      "color": "rose",
+      "subtitle": "In flight vs pre-flight",
+      "thresholds": []
+    },
+    {
+      "id": "core-temp-rest-change",
+      "name": "Resting core temp change",
+      "category": "Core vitals",
+      "kind": "number",
+      "chartType": "line",
+      "unit": "°C",
+      "icon": "thermometer",
+      "color": "amber",
+      "subtitle": "On the ISS vs pre-flight baseline",
+      "thresholds": [],
+      "decimals": 2
+    },
+    {
+      "id": "core-temp-exercise-change",
+      "name": "Exercise core temp change",
+      "category": "Core vitals",
+      "kind": "number",
+      "chartType": "line",
+      "unit": "°C",
+      "icon": "thermometer",
+      "color": "amber",
+      "subtitle": "Maximum during exercise vs pre-flight",
+      "thresholds": [],
+      "decimals": 2
+    },
+    {
+      "id": "calf-muscle-volume-change",
+      "name": "Calf muscle volume change",
+      "category": "Body composition",
+      "kind": "number",
+      "chartType": "line",
+      "unit": "%",
+      "icon": "dumbbell",
+      "color": "green",
+      "subtitle": "After 6 months on the ISS (MRI)",
+      "thresholds": []
+    },
+    {
+      "id": "calf-peak-power-change",
+      "name": "Calf peak power change",
+      "category": "Body composition",
+      "kind": "number",
+      "chartType": "line",
+      "unit": "%",
+      "icon": "dumbbell",
+      "color": "green",
+      "subtitle": "After 6 months on the ISS",
+      "thresholds": []
+    }
+  ]
+}

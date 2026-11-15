@@ -1,0 +1,55 @@
+[
+  {
+    "id": "barger-2014-iss-sleep",
+    "name": "ISS sleep study",
+    "initials": "SS",
+    "avatar": "😴",
+    "role": "Published cohort · 21 ISS astronauts",
+    "description": "Average sleep during ISS missions was 6.09 hours per night, well under the 8.5 hours NASA schedules (Barger et al., 2014).",
+    "archival": true,
+    "source": "Barger LK, Flynn-Evans EE, Kubey A, Walsh L, Ronda JM, Wang W, Wright KP, Czeisler CA. The Lancet Neurology, published 8 Aug 2014."
+  },
+  {
+    "id": "barger-2014-shuttle-sleep",
+    "name": "Shuttle sleep study",
+    "initials": "SH",
+    "avatar": "🚀",
+    "role": "Published cohort · 64 shuttle astronauts",
+    "description": "Average sleep during Space Shuttle missions was 5.96 hours per night (Barger et al., 2014).",
+    "archival": true,
+    "source": "Barger LK, Flynn-Evans EE, Kubey A, Walsh L, Ronda JM, Wang W, Wright KP, Czeisler CA. The Lancet Neurology, published 8 Aug 2014."
+  },
+  {
+    "id": "stahn-2017-iss-thermal",
+    "name": "ISS core temperature study",
+    "initials": "CT",
+    "avatar": "🌡️",
+    "role": "Published cohort · 11 ISS astronauts",
+    "description": "Resting core body temperature rose by about 1.01 °C during six-month ISS stays; the maximum during exercise rose by about 1.39 °C (Stahn et al., 2017).",
+    "archival": true,
+    "source": "Stahn AC, Werner A, Opatz O, et al. Scientific Reports 7:16180 (2017).",
+    "doi": "10.1038/s41598-017-15560-w"
+  },
+  {
+    "id": "norsk-2015-iss-cardiovascular",
+    "name": "ISS blood pressure study",
+    "initials": "BP",
+    "avatar": "🫀",
+    "role": "Published cohort · 8 ISS astronauts",
+    "description": "24-hour average blood pressure was lower in space (systolic −8, diastolic −9 mmHg) while cardiac output rose by 41% (Norsk et al., 2015).",
+    "archival": true,
+    "source": "Norsk P, Asmar A, Damgaard M, Christensen NJ. The Journal of Physiology 593(3):573–584 (2015).",
+    "doi": "10.1113/jphysiol.2014.284869"
+  },
+  {
+    "id": "trappe-2009-iss-muscle",
+    "name": "ISS muscle study",
+    "initials": "MV",
+    "avatar": "💪",
+    "role": "Published cohort · 9 ISS crew members",
+    "description": "After six months on the ISS, calf muscle volume fell by 13% and peak calf power by 32% despite daily exercise (Trappe et al., 2009).",
+    "archival": true,
+    "source": "Trappe S, Costill D, Gallagher P, et al. Journal of Applied Physiology 106(4):1159–1168 (2009).",
+    "doi": "10.1152/japplphysiol.91578.2008"
+  }
+]

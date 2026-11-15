@@ -1,5 +1,5 @@
 import { prepareSpeech, stopSpeaking } from "./lib/tts.js";
-import { DEFAULT_METRICS, DEMO_CREW, ELENA } from "./data/store.js";
+import { DEFAULT_METRICS, DEMO_CREW, ELENA, ACTIVE_DATA, BASE_DATA, DATA_NOTES } from "./data/store.js";
 import {
   STORAGE_KEY,
   loadState,
@@ -16,11 +16,11 @@ import { metricDialog } from "./components/metricDialog.js";
 import { metricDetailsDialog } from "./components/metricDetails.js";
 const AURA_MEMORY_KEY = "orbit-health-aura-memory-v1";
 const MAX_STORED_MESSAGES = 500;
-const IMPORT_STORAGE_KEY = "orbit-health-import-v1";
 
 import { environmentPage } from "./components/environment.js";
 import { crewCommsPage } from "./components/crewComms.js";
 import { importDataPage } from "./components/importData.js";
+import { FileDirectoryController } from "../file_directory_function/directory.js";
 import { mergeCSVFiles, parseCSV, serializeCSV } from "./lib/csv.js";
 
 const DEFAULT_ENVIRONMENT = {
@@ -92,8 +92,19 @@ export class App {
     this.state = loadState(DEFAULT_METRICS);
     this.initializeSimulationState();
     this.expression = "neutral";
-    this.view = "overview";
+    this.view = sessionStorage.getItem("orbit-health-open-view") || "overview";
+    sessionStorage.removeItem("orbit-health-open-view");
     this.sidebarCollapsed = true;
+    // File directory: drop files anywhere, convert them to the data-file format, show them on the dashboard
+    this.fileDirectory = new FileDirectoryController({
+      active: ACTIVE_DATA,
+      base: BASE_DATA,
+      notes: DATA_NOTES,
+      rerender: () => this.render(),
+      toast: (message) => this.showToast(message),
+      openPage: () => { this.view = "files"; },
+    });
+    this.fileDirectory.attachWindow();
     // Load AURA's long-term memory
     this.auraMemory = this.loadAuraMemory();
 
@@ -184,6 +195,13 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
         descriptionById.get(member.id) ||
         'A member of the expedition crew.'
 }));
+
+    // Keep saved crew in step with the data files: add new members, and keep published-study ("archival") entries exact.
+    const savedIds = new Set(this.state.crewSnapshots.map((member) => member.id));
+    for (const member of DEMO_CREW) if (!savedIds.has(member.id)) this.state.crewSnapshots.push(structuredClone(member));
+    this.state.crewSnapshots = this.state.crewSnapshots
+      .map((member) => DEMO_CREW.find((d) => d.id === member.id && d.archival) ? structuredClone(DEMO_CREW.find((d) => d.id === member.id)) : member)
+      .filter((member) => !member.archival || DEMO_CREW.some((d) => d.id === member.id));
     if (
       !Array.isArray(this.state.crewChatMessages) ||
       this.state.crewChatMessages.length === 0
@@ -307,6 +325,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
         activity: "Activity log",
         debug: "Debug",
         import: "Import data",
+        files: "File directory",
       }[this.view] || "Crew overview";
 
     this.root.innerHTML = `
@@ -323,6 +342,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
             <button class="nav-item ${this.view === "comms" ? "is-active" : ""}" data-action="navigate" data-view="comms" title="Crew comms">${icon("messageCircle", 18)}<span>Crew comms</span><span class="nav-count">${this.state.crewChatMessages.length}</span></button>
             <button class="nav-item ${this.view === "environment" ? "is-active" : ""}" data-action="navigate" data-view="environment" title="Environment">${icon("activity", 18)}<span>Environment</span></button>
             <button class="nav-item ${this.view === "import" ? "is-active" : ""}" data-action="navigate" data-view="import" title="Import data">${icon("database", 18)}<span>Import data</span></button>
+            <button class="nav-item ${this.view === "files" ? "is-active" : ""}" data-action="navigate" data-view="files" title="File directory">${icon("file", 18)}<span>File directory</span></button>
             <button class="nav-item ${this.view === "activity" ? "is-active" : ""}" data-action="navigate" data-view="activity" title="Activity log">${icon("clock", 18)}<span>Activity log</span><span class="nav-count">${activityCount}</span></button>
             <button class="nav-item ${this.view === "debug" ? "is-active" : ""}" data-action="navigate" data-view="debug" title="Debug">${icon("terminal", 18)}<span>Debug</span></button>
           </nav>
@@ -355,13 +375,14 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
             </div>
           </header>
 
-          ${this.view === "overview" ? this.renderOverview({ date }) : this.view === "crew" ? this.renderCrew({ date }) : this.view === "comms" ? this.renderCrewComms() : this.view === "environment" ? this.renderEnvironment({ date }) : this.view === "import" ? importDataPage({ dataset: this.importData, page: this.importDataPage, status: this.importDataStatus }) : this.view === "debug" ? this.renderDebug({ date }) : this.renderActivity({ date })}
+          ${this.view === "overview" ? this.renderOverview({ date }) : this.view === "crew" ? this.renderCrew({ date }) : this.view === "comms" ? this.renderCrewComms() : this.view === "environment" ? this.renderEnvironment({ date }) : this.view === "import" ? importDataPage({ dataset: this.importData, page: this.importDataPage, status: this.importDataStatus }) : this.view === "files" ? this.fileDirectory.page(date) : this.view === "debug" ? this.renderDebug({ date }) : this.renderActivity({ date })}
           <footer class="page-footer"><span>ORBIT HEALTH <i>•</i> CREW MONITORING INTERFACE</span><span>Demo data · Local device storage</span></footer>
         </main>
         <div id="modal-root"></div>
       </div>
       <div class="toast" id="toast" role="status" aria-live="polite"></div>`;
 
+    this.fileDirectory.afterRender(this.root);
     if (this.view === "comms") {
       const messageBox = this.root.querySelector("#crew-comms-messages");
       if (messageBox) messageBox.scrollTop = messageBox.scrollHeight;
@@ -401,7 +422,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
             ${emergencies.length ? `<div class="crew-emergency-strip"><div class="crew-emergency-strip__title">${icon("warning", 16)} <b>${emergencies.length} CREW IN EMERGENCY REVIEW</b></div><div class="crew-emergency-strip__items">${emergencies.map((member) => `<button type="button" data-action="focus-crew" data-id="${escapeHTML(member.id)}"><span class="crew-emergency-avatar"><span class="avatar-content" ${member.id === "elena-voss" ? "data-profile-avatar-content" : ""}>${this.renderAvatarContent(member.avatar, member.initials)}</span></span><span>${escapeHTML(member.name)}</span> <em>${escapeHTML(member.statusLabel)}</em></button>`).join("")}</div></div>` : `<div class="crew-emergency-strip crew-emergency-strip--clear">${icon("shield", 16)} <b>No crew health emergencies in the current demo snapshot.</b></div>`}
             <div class="crew-heartbeat-list">${heartbeatCards}</div>
           </section>
-          <div class="demo-note"><span>${icon("shield", 14)}</span><p><b>Prototype notice:</b> Readings and thresholds are synthetic examples. Ms HOA is a local rule-based preview, not a connected AI model or medical device. Do not use this prototype for diagnosis, treatment, fitness-for-duty, or flight-safety decisions.</p></div>
+          <div class="demo-note"><span>${icon("shield", 14)}</span><p><b>Prototype notice:</b> Readings and thresholds are synthetic examples. AURA is a local rule-based preview, not a connected AI model or medical device. Do not use this prototype for diagnosis, treatment, fitness-for-duty, or flight-safety decisions.</p></div>
         </div>
         <aside class="assistant-column assistant-column--sticky">${assistantRoom(this.expression, this.state.metrics, this.chatMessages, this.chatExpanded, focusedCrew)}</aside>
       </div>`;
@@ -732,7 +753,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
         </div>
         <aside class="debug-tools panel">
           <div class="eyebrow">MAINTENANCE</div><h2>Factory reset</h2>
-          <p>Restore the original demo readings and clear all locally stored app information, including custom metrics, activity history, selected crew member, saved preferences, and Ms HOA conversation.</p>
+          <p>Restore the original demo readings and clear all locally stored app information, including custom metrics, activity history, selected crew member, saved preferences, and AURA conversation.</p>
           <div class="debug-reset-warning">${icon("warning", 16)} This action cannot be undone.</div>
           <button type="button" class="button button--danger" data-action="factory-reset">${icon("refresh", 15)} Factory reset app</button>
           <div class="debug-tools__meta"><span>App version</span><b>1.6.0</b><span>Storage</span><b>Browser localStorage</b><span>Access</span><b>Open navigation</b></div>
@@ -798,7 +819,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
         sharedNotes: Array.isArray(saved.sharedNotes) ? saved.sharedNotes : [],
       };
     } catch (error) {
-      console.warn("Could not load Ms HOA memory:", error);
+      console.warn("Could not load AURA memory:", error);
       return emptyMemory;
     }
   }
@@ -808,7 +829,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
     try {
       localStorage.setItem(AURA_MEMORY_KEY, JSON.stringify(this.auraMemory));
     } catch (error) {
-      console.error("Could not save Ms HOA memory:", error);
+      console.error("Could not save AURA memory:", error);
     }
   }
 
@@ -1046,13 +1067,16 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
   }
 
   async askModel(question, focused) {
-    const contextResponse = await fetch(new URL("../context.txt", import.meta.url));
-    if (!contextResponse.ok) {
-      throw new Error(`Could not load AI context: ${contextResponse.status}`);
-    }
-    const system = `${(await contextResponse.text()).trim()}
+    const system = `You are AURA, a friendly health assistant for a space crew demo app.
 
-${this.buildContext(focused)}`;
+  Use ONLY the website context below and the supplied conversation history.
+  If information is unavailable, say so.
+  Do not invent information.
+  Distinguish personal memories from shared crew memories.
+  Reply in 1-3 short sentences.
+  You are not a doctor and must not diagnose or give treatment advice.
+
+  ${this.buildContext(focused)}`;
 
     const history = this.getRelevantConversation(question, focused.id);
 
@@ -1176,14 +1200,14 @@ ${this.buildContext(focused)}`;
     try {
       speech = await prepareSpeech(answer);
     } catch (error) {
-      console.warn("Ms HOA speech generation failed:", error);
+      console.warn("AURA speech generation failed:", error);
     }
     this.aiBusy = false;
 
     if (thinking) thinking.textContent = answer;
     speech
       ?.play()
-      ?.catch((error) => console.warn("Ms HOA audio playback failed:", error));
+      ?.catch((error) => console.warn("AURA audio playback failed:", error));
     // Add the latest conversation
     this.chatMessages.push(
       { role: "user", text: question },
@@ -1217,7 +1241,7 @@ ${this.buildContext(focused)}`;
     const item = document.createElement("div");
     item.className = `chat-message chat-message--${role} chat-message--enter`;
     const label = document.createElement("span");
-    label.textContent = role === "user" ? "YOU" : "Ms HOA";
+    label.textContent = role === "user" ? "YOU" : "AURA";
     const paragraph = document.createElement("p");
     paragraph.textContent = text;
     item.append(label, paragraph);
@@ -1249,7 +1273,7 @@ ${this.buildContext(focused)}`;
       };
       preview.src =
         expressionImages[this.expression] || expressionImages.neutral;
-      preview.alt = `Ms HOA ${this.expression} expression`;
+      preview.alt = `AURA ${this.expression} expression`;
     }
   }
 
@@ -1499,6 +1523,7 @@ ${this.buildContext(focused)}`;
       "temperature",
     ];
     for (const member of this.state.crewSnapshots) {
+      if (member.archival) continue; // published study data is never simulated
       for (const reading of member.metricReadings || []) {
         reading.value = this.normalCrewReading(reading.id, member);
         this.evaluateCrewReading(reading);
@@ -1699,7 +1724,7 @@ ${this.buildContext(focused)}`;
         `Theme: dark`,
         `Metrics: ${this.state.metrics.length}`,
         `Activity entries: ${this.state.log.length}`,
-        `Ms HOA messages: ${this.chatMessages.length}`,
+        `AURA messages: ${this.chatMessages.length}`,
         `Focused crew member: ${this.getFocusedCrew().name}`,
         "Storage: browser localStorage",
       );
@@ -1758,7 +1783,6 @@ ${this.buildContext(focused)}`;
     )
       return;
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(IMPORT_STORAGE_KEY);
     localStorage.removeItem(AURA_MEMORY_KEY);
 
     this.state = loadState(DEFAULT_METRICS);
@@ -1940,6 +1964,7 @@ ${this.buildContext(focused)}`;
     const button = event.target.closest("[data-action]");
     if (!button) return;
     const action = button.dataset.action;
+    if (this.fileDirectory.click(action)) return;
     if (action === "toggle-sidebar") this.toggleSidebar();
     if (action === "toggle-profile-menu") {
       const menu = this.root.querySelector(".profile-popover");
@@ -2003,9 +2028,7 @@ ${this.buildContext(focused)}`;
         this.render();
       }
     }
-    
     if (action === "focus-crew") {
-      stopSpeaking();
       // Save previous conversation and load new crew member's chat
       this.switchPersonalConversation(button.dataset.id);
 
@@ -2037,6 +2060,7 @@ ${this.buildContext(focused)}`;
   }
 
   handleChange(event) {
+    if (this.fileDirectory.change(event)) return;
     if (event.target.id === "csv-upload") {
       const files = [...(event.target.files || [])];
       event.target.value = "";
@@ -2063,32 +2087,25 @@ ${this.buildContext(focused)}`;
   }
 
   async loadImportedData() {
-  let saved = null;
-  let fromServer = false;
-  try {
-    const response = await fetch("/api/import-data", { cache: "no-store" });
-    if (response.ok) {
-      saved = await response.json();
-      fromServer = true;
-    }
-  } catch {}
-  if (!saved) {
     try {
-      saved = JSON.parse(localStorage.getItem(IMPORT_STORAGE_KEY) || "null");
+      const response = await fetch("/api/import-data", { cache: "no-store" });
+      if (response.status === 404) return;
+      if (!response.ok) return;
+      const saved = await response.json();
+      const parsed = parseCSV(saved.csv);
+      this.importData = {
+        ...parsed,
+        sourceFiles: Array.isArray(saved.sourceFiles) ? saved.sourceFiles : ["merged.csv"],
+        importedAt: saved.importedAt || null,
+        savedToRawData: true,
+      };
+      this.importDataPage = 0;
+      if (this.view === "import") this.render();
     } catch {
-      return;
+      // Static hosts and basic file servers do not provide the local save API.
+      // Uploads still work in-session and can be downloaded as a merged CSV.
     }
   }
-  if (!saved?.csv) return;
-  this.importData = {
-    ...parseCSV(saved.csv),
-    sourceFiles: Array.isArray(saved.sourceFiles) ? saved.sourceFiles : ["merged.csv"],
-    importedAt: saved.importedAt || null,
-    savedToRawData: fromServer,
-  };
-  this.importDataPage = 0;
-  if (this.view === "import") this.render();
-}
 
   downloadMergedCSV(csv) {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -2157,20 +2174,10 @@ ${this.buildContext(focused)}`;
         this.render();
         this.showToast("CSV data saved to raw_data/merged.csv.");
       } catch {
-        let stored = true;
-        try {
-        localStorage.setItem(
-            IMPORT_STORAGE_KEY,
-            JSON.stringify({ csv, sourceFiles: merged.sourceFiles, importedAt }),
-          );
-        } catch {
-          stored = false;
-        }
-        this.importDataStatus = stored
-          ? "CSV merged and stored in this browser. Use the download button to save merged.csv."
-          : "CSV merged and shown, but it is too large to store in this browser; it will be lost on reload. Use the download button to save merged.csv.";
+        this.downloadMergedCSV(csv);
+        this.importDataStatus = "CSV merged and displayed. This server cannot write into the project folder, so merged.csv was downloaded; move it into raw_data/ to store it there.";
         this.render();
-        this.showToast("CSV merged. Click download to save it.");
+        this.showToast("Merged CSV downloaded. Move it into the raw_data folder.");
       }
     } catch (error) {
       this.importDataStatus = error.message || "The selected CSV files could not be read.";

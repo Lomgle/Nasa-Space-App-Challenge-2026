@@ -1,0 +1,15 @@
+{
+  "datasets": [
+    {
+      "id": "iss-published-studies",
+      "title": "Published ISS astronaut health studies",
+      "enabled": true,
+      "files": {
+        "astronauts": "astronauts.json",
+        "metrics": "metrics.json",
+        "health": "health.json"
+      },
+      "sources": "SOURCES.md"
+    }
+  ]
+}

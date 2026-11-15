@@ -1,0 +1,106 @@
+{
+  "barger-2014-iss-sleep": {
+    "link": {
+      "signal": 0,
+      "connectivity": "offline"
+    },
+    "waveform": [],
+    "statusLabel": "Published study data (n=21)",
+    "readings": {
+      "sleep": [
+        {
+          "date": "2014-08-08",
+          "value": 6.09
+        }
+      ]
+    }
+  },
+  "barger-2014-shuttle-sleep": {
+    "link": {
+      "signal": 0,
+      "connectivity": "offline"
+    },
+    "waveform": [],
+    "statusLabel": "Published study data (n=64)",
+    "readings": {
+      "sleep": [
+        {
+          "date": "2014-08-08",
+          "value": 5.96
+        }
+      ]
+    }
+  },
+  "stahn-2017-iss-thermal": {
+    "link": {
+      "signal": 0,
+      "connectivity": "offline"
+    },
+    "waveform": [],
+    "statusLabel": "Published study data (n=11)",
+    "readings": {
+      "core-temp-rest-change": [
+        {
+          "date": "2017-11-23",
+          "value": 1.01
+        }
+      ],
+      "core-temp-exercise-change": [
+        {
+          "date": "2017-11-23",
+          "value": 1.39
+        }
+      ]
+    }
+  },
+  "norsk-2015-iss-cardiovascular": {
+    "link": {
+      "signal": 0,
+      "connectivity": "offline"
+    },
+    "waveform": [],
+    "statusLabel": "Published study data (n=8)",
+    "readings": {
+      "systolic-change": [
+        {
+          "date": "2015-01-12",
+          "value": -8
+        }
+      ],
+      "diastolic-change": [
+        {
+          "date": "2015-01-12",
+          "value": -9
+        }
+      ],
+      "cardiac-output-change": [
+        {
+          "date": "2015-01-12",
+          "value": 41
+        }
+      ]
+    }
+  },
+  "trappe-2009-iss-muscle": {
+    "link": {
+      "signal": 0,
+      "connectivity": "offline"
+    },
+    "waveform": [],
+    "statusLabel": "Published study data (n=9)",
+    "readings": {
+      "calf-muscle-volume-change": [
+        {
+          "date": "2009-01-15",
+          "value": -13
+        }
+      ],
+      "calf-peak-power-change": [
+        {
+          "date": "2009-01-15",
+          "value": -32
+        }
+      ]
+    }
+  }
+}

@@ -5,15 +5,24 @@
 // Runtime edits and the daily simulation stay in the browser (localStorage); these files are never written.
 import { formatMetricValue, evaluateMetric } from '../lib/health.js';
 import { validateData } from './validate.js';
+import { loadExtras } from '../../file_directory_function/index.js';
 
 const load = async (name) => {
   const res = await fetch(new URL(`../../data/${name}.json`, import.meta.url));
   if (!res.ok) throw new Error(`data/${name}.json: HTTP ${res.status}`);
   try { return await res.json(); } catch { throw new Error(`data/${name}.json: not valid JSON`); }
 };
-const [astronauts, metrics, health] = await Promise.all(['astronauts', 'metrics', 'health'].map(load));
-const problems = validateData({ astronauts, metrics, health });
+const core = Object.fromEntries(await Promise.all(['astronauts', 'metrics', 'health'].map(async (n) => [n, await load(n)])));
+const problems = validateData(core);
 if (problems.length) throw new Error(`Invalid data files:\n- ${problems.join('\n- ')}`);
+
+// Extras (file_directory_function/): real_data/ data sets + anything imported on the File directory page.
+// A broken extra data set is skipped and reported in DATA_NOTES; it can never stop the site from starting.
+const extras = await loadExtras(core);
+const { astronauts, metrics, health } = extras.data;
+export const ACTIVE_DATA = extras.data;      // everything the site shows
+export const BASE_DATA = extras.preOverlay;  // data/*.json + real_data/ (before browser imports)
+export const DATA_NOTES = extras.notes;
 
 const MOOD_SCORE = { Great: 4, Steady: 3, Low: 2, Strained: 1 };
 const latest = (series) => series[series.length - 1];
