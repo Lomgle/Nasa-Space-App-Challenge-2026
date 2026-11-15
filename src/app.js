@@ -16,6 +16,7 @@ import { metricDialog } from "./components/metricDialog.js";
 import { metricDetailsDialog } from "./components/metricDetails.js";
 const AURA_MEMORY_KEY = "orbit-health-aura-memory-v1";
 const MAX_STORED_MESSAGES = 500;
+const IMPORT_STORAGE_KEY = "orbit-health-import-v1";
 
 import { environmentPage } from "./components/environment.js";
 import { crewCommsPage } from "./components/crewComms.js";
@@ -1757,6 +1758,7 @@ ${this.buildContext(focused)}`;
     )
       return;
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(IMPORT_STORAGE_KEY);
     localStorage.removeItem(AURA_MEMORY_KEY);
 
     this.state = loadState(DEFAULT_METRICS);
@@ -2001,6 +2003,7 @@ ${this.buildContext(focused)}`;
         this.render();
       }
     }
+    
     if (action === "focus-crew") {
       stopSpeaking();
       // Save previous conversation and load new crew member's chat
@@ -2060,25 +2063,32 @@ ${this.buildContext(focused)}`;
   }
 
   async loadImportedData() {
+  let saved = null;
+  let fromServer = false;
+  try {
+    const response = await fetch("/api/import-data", { cache: "no-store" });
+    if (response.ok) {
+      saved = await response.json();
+      fromServer = true;
+    }
+  } catch {}
+  if (!saved) {
     try {
-      const response = await fetch("/api/import-data", { cache: "no-store" });
-      if (response.status === 404) return;
-      if (!response.ok) return;
-      const saved = await response.json();
-      const parsed = parseCSV(saved.csv);
-      this.importData = {
-        ...parsed,
-        sourceFiles: Array.isArray(saved.sourceFiles) ? saved.sourceFiles : ["merged.csv"],
-        importedAt: saved.importedAt || null,
-        savedToRawData: true,
-      };
-      this.importDataPage = 0;
-      if (this.view === "import") this.render();
+      saved = JSON.parse(localStorage.getItem(IMPORT_STORAGE_KEY) || "null");
     } catch {
-      // Static hosts and basic file servers do not provide the local save API.
-      // Uploads still work in-session and can be downloaded as a merged CSV.
+      return;
     }
   }
+  if (!saved?.csv) return;
+  this.importData = {
+    ...parseCSV(saved.csv),
+    sourceFiles: Array.isArray(saved.sourceFiles) ? saved.sourceFiles : ["merged.csv"],
+    importedAt: saved.importedAt || null,
+    savedToRawData: fromServer,
+  };
+  this.importDataPage = 0;
+  if (this.view === "import") this.render();
+}
 
   downloadMergedCSV(csv) {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -2147,10 +2157,20 @@ ${this.buildContext(focused)}`;
         this.render();
         this.showToast("CSV data saved to raw_data/merged.csv.");
       } catch {
-        this.downloadMergedCSV(csv);
-        this.importDataStatus = "CSV merged and displayed. This server cannot write into the project folder, so merged.csv was downloaded; move it into raw_data/ to store it there.";
+        let stored = true;
+        try {
+        localStorage.setItem(
+            IMPORT_STORAGE_KEY,
+            JSON.stringify({ csv, sourceFiles: merged.sourceFiles, importedAt }),
+          );
+        } catch {
+          stored = false;
+        }
+        this.importDataStatus = stored
+          ? "CSV merged and stored in this browser. Use the download button to save merged.csv."
+          : "CSV merged and shown, but it is too large to store in this browser; it will be lost on reload. Use the download button to save merged.csv.";
         this.render();
-        this.showToast("Merged CSV downloaded. Move it into the raw_data folder.");
+        this.showToast("CSV merged. Click download to save it.");
       }
     } catch (error) {
       this.importDataStatus = error.message || "The selected CSV files could not be read.";
