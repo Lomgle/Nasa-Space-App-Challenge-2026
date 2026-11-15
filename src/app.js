@@ -1,4 +1,4 @@
-import { prepareSpeech, stopSpeaking } from "./lib/tts.js";
+import { prepareSpeech, preloadSpeech, stopSpeaking } from "./lib/tts.js";
 import { DEFAULT_METRICS, DEMO_CREW, ELENA } from "./data/store.js";
 import {
   STORAGE_KEY,
@@ -1857,6 +1857,9 @@ ${this.buildContext(focused)}`;
     button.title = label;
     button.innerHTML = icon(this.chatExpanded ? "shrink" : "expand", 16);
     if (this.chatExpanded) {
+      preloadSpeech().catch((error) =>
+        console.warn("Ms HOA speech preloading failed:", error),
+      );
       const messages = this.root.querySelector("#assistant-chat-messages");
       if (messages) messages.scrollTop = messages.scrollHeight;
       this.root.querySelector("#assistant-chat-input")?.focus();
