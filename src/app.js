@@ -320,7 +320,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
       <div class="app-shell ${this.sidebarCollapsed ? "sidebar-collapsed" : ""}" data-theme="dark">
         <aside class="sidebar">
           <div class="sidebar-brand-row">
-            <a class="brand" href="#overview" aria-label="Orbit Health home"><span class="brand-mark"><span></span><span></span><span></span></span><span class="brand-wordmark">Cosmi<span>tility</span></span></a>
+            <a class="brand" href="#overview" aria-label="Cosmitility Health home"><span class="brand-mark"><span></span><span></span><span></span></span><span class="brand-wordmark">Cosmi<span>tility</span></span></a>
             <button class="sidebar-toggle" data-action="toggle-sidebar" aria-label="${this.sidebarCollapsed ? "Expand" : "Collapse"} sidebar" aria-expanded="${!this.sidebarCollapsed}" title="${this.sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}">${icon(this.sidebarCollapsed ? "panelLeftOpen" : "panelLeftClose", 17)}</button>
           </div>
           <div class="mission-label">MISSION CONSOLE</div>
@@ -724,16 +724,16 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
     const output = this.terminalLines.length
       ? this.terminalLines
       : [
-          "ORBIT HEALTH / LOCAL DIAGNOSTICS",
+          "COSMITILITY HEALTH / LOCAL DIAGNOSTICS",
           'Debug session opened. Type "help" to list available commands.',
         ];
     return `
       <section class="page-header debug-page-header"><div><div class="eyebrow">MISSION CONSOLE <span>·</span> SYSTEM TOOLS</div><h1>Debug</h1><p class="page-subtitle">Local diagnostics and maintenance.</p></div><div class="header-date"><span>${icon("clock", 15)}</span><div><b>${date}</b><small>Local debug session</small></div></div></section>
       <section class="debug-layout">
         <div class="debug-terminal panel">
-          <div class="debug-terminal__top"><div><span class="terminal-status-dot"></span><b>ORBIT TERMINAL</b><small>LOCAL / MOCK ENVIRONMENT</small></div><button type="button" class="button button--quiet" data-action="terminal-clear">Clear output</button></div>
+          <div class="debug-terminal__top"><div><span class="terminal-status-dot"></span><b>COSMITILITY TERMINAL</b><small>LOCAL / MOCK ENVIRONMENT</small></div><button type="button" class="button button--quiet" data-action="terminal-clear">Clear output</button></div>
           <div class="debug-terminal__output" id="terminal-output" role="log" aria-live="polite">${output.map((line) => `<div class="terminal-line">${escapeHTML(line)}</div>`).join("")}</div>
-          <form class="debug-terminal__form" id="terminal-form"><label for="terminal-command">operator@orbit:~$</label><input id="terminal-command" name="command" autocomplete="off" spellcheck="false" placeholder="type help" maxlength="120" /><button type="submit" aria-label="Run command">${icon("arrow", 16)}</button></form>
+          <form class="debug-terminal__form" id="terminal-form"><label for="terminal-command">operator@cosmixxi:~$</label><input id="terminal-command" name="command" autocomplete="off" spellcheck="false" placeholder="type help" maxlength="120" /><button type="submit" aria-label="Run command">${icon("arrow", 16)}</button></form>
         </div>
         <aside class="debug-tools panel">
           <div class="eyebrow">MAINTENANCE</div><h2>Factory reset</h2>
@@ -1705,7 +1705,7 @@ ${this.buildContext(focused)}`;
     const command = String(rawCommand || "").trim();
     if (!command) return;
     const lower = command.toLowerCase();
-    const lines = [`operator@orbit:~$ ${command}`];
+    const lines = [`operator@cosmixxi:~$ ${command}`];
     if (lower === "help") {
       lines.push(
         "Available commands:",
@@ -1719,7 +1719,7 @@ ${this.buildContext(focused)}`;
       );
     } else if (lower === "status") {
       lines.push(
-        `App: Orbit Health 1.6.0`,
+        `App: Cosmitility 1.6.0`,
         `View: ${this.view}`,
         `Theme: dark`,
         `Metrics: ${this.state.metrics.length}`,
@@ -1778,7 +1778,7 @@ ${this.buildContext(focused)}`;
   factoryReset() {
     if (
       !window.confirm(
-        "Factory reset Orbit Health? This clears local readings, custom metrics, history, chat, and preferences.",
+        "Factory reset Cosmitility? This clears local readings, custom metrics, history, chat, and preferences.",
       )
     )
       return;
@@ -2002,7 +2002,7 @@ ${this.buildContext(focused)}`;
         this.terminalLines = this.terminalLines.length
           ? this.terminalLines
           : [
-              "ORBIT HEALTH / LOCAL DIAGNOSTICS",
+              "COSMITILITY HEALTH / LOCAL DIAGNOSTICS",
               'Debug console opened. Type \"help\" to list commands.',
             ];
       if (this.view === "crew") {
