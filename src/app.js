@@ -14,6 +14,7 @@ import { metricCard } from "./components/metricCard.js";
 import { assistantRoom } from "./components/assistantRoom.js";
 import { metricDialog } from "./components/metricDialog.js";
 import { metricDetailsDialog } from "./components/metricDetails.js";
+import { expressionForAssistantText } from "./lib/assistantExpression.js";
 const AURA_MEMORY_KEY = "orbit-health-aura-memory-v1";
 const MAX_STORED_MESSAGES = 500;
 const IMPORT_STORAGE_KEY = "orbit-health-import-v1";
@@ -289,7 +290,13 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
       day: "numeric",
       year: "numeric",
     }).format(missionDate);
-    this.expression = this.getAssistantExpression();
+    const lastAssistantMessage = [...this.chatMessages]
+      .reverse()
+      .find((message) => message.role === "assistant");
+    this.expression =
+      this.chatExpanded && lastAssistantMessage
+        ? expressionForAssistantText(lastAssistantMessage.text)
+        : this.getAssistantExpression();
     const activityCount = this.state.log.length;
     if (this.view === "crew") {
       const selectedIndex = this.getCrewSnapshot().findIndex(
@@ -955,12 +962,24 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
 
     this.savePersonalConversation(focused.id);
     this.persist();
+    this.expression = this.chatExpanded
+      ? expressionForAssistantText(answer)
+      : this.getAssistantExpression();
+    this.updateAssistantExpression();
 
     return true;
   }
 
   buildContext(focused) {
     const crew = this.getCrewSnapshot();
+    const missionDay = this.state.daysElapsed + 1;
+    const missionDate = new Date(Date.now() + this.state.daysElapsed * 86400000);
+    const latestSimulation = [...this.state.log].reverse()
+      .find(entry => entry.metricId === 'simulation');
+    const dailyChanges = this.state.log
+      .filter(entry => entry.note === `Daily simulation · Day ${missionDay}`)
+      .map(entry => `- ${entry.metricName}: ${entry.previousValue} -> ${entry.nextValue}`)
+      .join('\n') || 'No daily reading changes recorded for this mission day.';
 
     const fmt = (rows) =>
       rows
@@ -999,7 +1018,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
         .slice(-5)
         .map(
           (e) =>
-            `${e.time}: ${e.metricName} ${e.previousValue} -> ${e.nextValue}`,
+            `${e.time}: ${e.metricName} ${e.previousValue} -> ${e.nextValue}${e.note ? ` (${e.note})` : ""}`,
         )
         .join("\n") || "none";
 
@@ -1017,7 +1036,13 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
 
     // Combine all website information
     return `
-  Today: ${new Date().toLocaleDateString()}
+  CURRENT MISSION SIMULATION (use this as the source of truth for Skip Day questions):
+  Mission day: ${missionDay}
+  Simulated date: ${missionDate.toLocaleDateString()}
+  Days advanced: ${this.state.daysElapsed}
+  Latest Skip Day: ${latestSimulation ? `${latestSimulation.previousValue} -> ${latestSimulation.nextValue}` : 'No Skip Day actions yet.'}
+  Reading changes for the current mission day:
+  ${dailyChanges}
 
   FOCUSED CREW MEMBER:
   ${focused.name} (${focused.role})
@@ -1064,8 +1089,8 @@ ${this.buildContext(focused)}`;
           ...history,
           { role: "user", content: question },
         ],
-        max_tokens: 200,
-        temperature: 0.3,
+        max_tokens: 500,
+        temperature: 0.5,
       }),
     });
 
@@ -1199,7 +1224,9 @@ ${this.buildContext(focused)}`;
     this.persist();
 
     this.state.chatMessages = this.chatMessages;
-    this.expression = this.getAssistantExpression();
+    this.expression = this.chatExpanded
+      ? expressionForAssistantText(answer)
+      : this.getAssistantExpression();
     this.persist();
     this.updateAssistantExpression();
 
@@ -1801,6 +1828,13 @@ ${this.buildContext(focused)}`;
   toggleAssistantExpand() {
     this.chatExpanded = !this.chatExpanded;
     document.body.classList.toggle("assistant-open", this.chatExpanded);
+    const lastAssistantMessage = [...this.chatMessages]
+      .reverse()
+      .find((message) => message.role === "assistant");
+    this.expression =
+      this.chatExpanded && lastAssistantMessage
+        ? expressionForAssistantText(lastAssistantMessage.text)
+        : this.getAssistantExpression();
     const panel = this.root.querySelector(".assistant-panel");
     const backdrop = this.root.querySelector(".assistant-expand-backdrop");
     const button = this.root.querySelector(
@@ -1810,6 +1844,7 @@ ${this.buildContext(focused)}`;
       this.render();
       return;
     }
+    this.updateAssistantExpression();
     panel.classList.toggle("assistant-panel--expanded", this.chatExpanded);
     if (backdrop) backdrop.hidden = !this.chatExpanded;
     panel.setAttribute("role", this.chatExpanded ? "dialog" : "region");
