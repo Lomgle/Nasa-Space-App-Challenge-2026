@@ -6120,3 +6120,43 @@ CONTAINER & MEDIA QUERIES
     justify-content: space-between;
   }
 }
+}
+/* rantuff
+/* AURA speaking effects: voice-reactive bounce and glow */
+:root { --aura-glow: 94, 255, 150; }   /* R, G, B of the light */
+
+.aura-speak-glow {
+  position: absolute;
+  inset: -14%;
+  z-index: -1;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle, rgba(var(--aura-glow), .5) 0%, rgba(var(--aura-glow), 0) 66%);
+  transition: opacity .35s ease;
+}
+
+.assistant-custom-preview,
+.assistant-custom-preview + * {
+  transition: translate .25s ease-out, rotate .25s ease-out, scale .25s ease-out;
+}
+
+body.aura-speaking .aura-speak-glow {
+  opacity: calc(.3 + var(--aura-level, 0) * .7);
+  scale: calc(.96 + var(--aura-level, 0) * .1);
+  transition: none;
+}
+
+body.aura-speaking .assistant-custom-preview,
+body.aura-speaking .assistant-custom-preview + * {
+  transform-origin: 50% 90%;
+  translate: calc(var(--aura-x, 0) * 2px) calc(var(--aura-level, 0) * -5px);
+  rotate: calc(var(--aura-rot, 0) * 1.2deg);
+  scale: calc(1 + var(--aura-level, 0) * .03);
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.aura-speaking .assistant-custom-preview,
+  body.aura-speaking .assistant-custom-preview + * { translate: none; rotate: none; scale: none; }
+}
