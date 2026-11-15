@@ -42,7 +42,7 @@ export function assistantRoom(expression = 'neutral', metrics = [], messages = [
     <button class="assistant-expand-backdrop" data-action="assistant-expand-backdrop" aria-label="Close expanded assistant" ${expanded ? '' : 'hidden'}></button>
     <section class="assistant-panel panel ${expanded ? 'assistant-panel--expanded' : ''}" aria-label="Crew Support" aria-modal="${expanded ? 'true' : 'false'}" role="${expanded ? 'dialog' : 'region'}">
       <div class="assistant-heading-row">
-        <div><div class="eyebrow">MISSION CONSOLE</div><h2>CREW SUPPORT <span>Ms HOA</span></h2></div>
+        <div><div class="eyebrow">MISSION CONSOLE</div><h2>CREW SUPPORT <span>Ms Hoa</span></h2></div>
         <div class="assistant-heading-actions"><span class="prototype-tag">( •̀ ω •́ )✧</span><button type="button" class="assistant-expand-button" data-action="toggle-assistant-expand" aria-label="${expanded ? 'Collapse assistant chat' : 'Expand assistant chat'}" aria-expanded="${expanded}" title="${expanded ? 'Collapse assistant chat' : 'Expand assistant chat'}">${icon(expanded ? 'shrink' : 'expand', 16)}</button></div>
       </div>
 
@@ -52,11 +52,11 @@ export function assistantRoom(expression = 'neutral', metrics = [], messages = [
         <em class="focused-crew-signal focused-crew-signal--${escapeHTML(focusedCrew?.connectivity || 'connected')}">${signalLabel}</em>
       </div>
 
-      <div class="assistant-stage assistant-stage--${expression}" aria-label="AURA model preview">
-        <div class="crt-screen-top"><span>Ms 𝘏𝘖𝘈</span></div>
+      <div class="assistant-stage assistant-stage--${expression}" aria-label="Ms Hoa model preview">
+        <div class="crt-screen-top"><span>Ms Hoa</span></div>
         <div class="crt-scanlines"></div><div class="crt-vignette"></div><div class="crt-flicker"></div>
         <div class="assistant-model-frame">
-          <img src="./assets/ai_${expression}.png" class="assistant-custom-preview" alt="AURA ${expression} expression" onerror="this.hidden=true; this.nextElementSibling.hidden=false" />
+          <img src="./assets/ai_${expression}.png" class="assistant-custom-preview" alt="Ms Hoa ${expression} expression" onerror="this.hidden=true; this.nextElementSibling.hidden=false" />
         </div>
       </div>
 
@@ -65,19 +65,19 @@ export function assistantRoom(expression = 'neutral', metrics = [], messages = [
         <p>${escapeHTML(summary)}</p>
       </div>
 
-      <button type="button" class="assistant-chat-launch" data-action="toggle-assistant-expand">${icon('messageCircle', 16)} Talk to Ms HOA <span>${messages.length ? `${messages.length} messages` : 'Start chat'}</span>${icon('arrow', 15)}</button>
+      <button type="button" class="assistant-chat-launch" data-action="toggle-assistant-expand">${icon('messageCircle', 16)} Talk to Ms Hoa <span>${messages.length ? `${messages.length} messages` : 'Start chat'}</span>${icon('arrow', 15)}</button>
 
-      <div class="assistant-chat" aria-label="AURA conversation">
+      <div class="assistant-chat" aria-label="Ms Hoa conversation">
         <div class="assistant-chat__header"><b>Conversation</b><span>Stored on this device</span></div>
         <div class="assistant-chat__messages" id="assistant-chat-messages" aria-live="polite" aria-relevant="additions">
-          ${history.map(message => `<div class="chat-message chat-message--${message.role === 'user' ? 'user' : 'assistant'}"><span>${message.role === 'user' ? 'YOU' : 'Ms HOA'}</span><p>${escapeHTML(message.text)}</p></div>`).join('')}
+          ${history.map(message => `<div class="chat-message chat-message--${message.role === 'user' ? 'user' : 'assistant'}"><span>${message.role === 'user' ? 'YOU' : 'Ms Hoa'}</span><p>${escapeHTML(message.text)}</p></div>`).join('')}
         </div>
         <div class="assistant-prompts">
           <button type="button" data-action="ask-assistant" data-prompt="Summarize my health">Summarize selected crew</button>
           <button type="button" data-action="ask-assistant" data-prompt="Which readings need review?">What needs review?</button>
         </div>
         <form class="assistant-chat__form" id="assistant-chat-form">
-          <label class="sr-only" for="assistant-chat-input">Message AURA</label>
+          <label class="sr-only" for="assistant-chat-input">Message Ms Hoa</label>
           <input id="assistant-chat-input" name="message" maxlength="300" autocomplete="off" placeholder="Ask about ${escapeHTML(selectedName)}…" required />
           <button type="submit" aria-label="Send message">${icon('arrow', 17)}</button>
         </form>

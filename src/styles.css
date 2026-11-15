@@ -2185,7 +2185,7 @@ CREW PULSE & HEARTBEAT CARDS
 }
 
 /* =================================
-AURA ASSISTANT PANEL & CRT STAGE
+MS HOA ASSISTANT PANEL & CRT STAGE
 ================================= */
 
 .assistant-heading {
@@ -6122,7 +6122,7 @@ CONTAINER & MEDIA QUERIES
 }
 
 /* rantuff
-/* AURA speaking effects: voice-reactive bounce and glow */
+/* Ms Hoa speaking effects: voice-reactive bounce and glow */
 :root { --aura-glow: 94, 255, 150; }   /* R, G, B of the light */
 
 .aura-speak-glow {

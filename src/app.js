@@ -173,7 +173,7 @@ export class App {
   getAssistantExpression() {
     const focused = this.getFocusedCrew();
     if (!focused) return 'neutral';
-    // AURA reacts only to the selected astronaut's health state and link quality.
+    // Ms Hoa reacts only to the selected astronaut's health state and link quality.
     if (focused.connectivity === 'offline') return 'alert';
     if (focused.id === 'elena-voss' && !this.state.metrics.length) return 'neutral';
     const healthSeverity = focused.id === 'elena-voss'
@@ -306,7 +306,7 @@ export class App {
             ${emergencies.length ? `<div class="crew-emergency-strip"><div class="crew-emergency-strip__title">${icon('warning', 16)} <b>${emergencies.length} CREW IN EMERGENCY REVIEW</b></div><div class="crew-emergency-strip__items">${emergencies.map(member => `<button type="button" data-action="focus-crew" data-id="${escapeHTML(member.id)}"><span class="crew-emergency-avatar"><span class="avatar-content" ${member.id === 'elena-voss' ? 'data-profile-avatar-content' : ''}>${this.renderAvatarContent(member.avatar, member.initials)}</span></span><span>${escapeHTML(member.name)}</span> <em>${escapeHTML(member.statusLabel)}</em></button>`).join('')}</div></div>` : `<div class="crew-emergency-strip crew-emergency-strip--clear">${icon('shield', 16)} <b>No crew health emergencies in the current demo snapshot.</b></div>`}
             <div class="crew-heartbeat-list">${heartbeatCards}</div>
           </section>
-          <div class="demo-note"><span>${icon('shield', 14)}</span><p><b>Prototype notice:</b> Readings and thresholds are synthetic examples. AURA is a local rule-based preview, not a connected AI model or medical device. Do not use this prototype for diagnosis, treatment, fitness-for-duty, or flight-safety decisions.</p></div>
+          <div class="demo-note"><span>${icon('shield', 14)}</span><p><b>Prototype notice:</b> Readings and thresholds are synthetic examples. Ms Hoa is a local rule-based preview, not a connected AI model or medical device. Do not use this prototype for diagnosis, treatment, fitness-for-duty, or flight-safety decisions.</p></div>
         </div>
         <aside class="assistant-column assistant-column--sticky">${assistantRoom(this.expression, this.state.metrics, this.chatMessages, this.chatExpanded, focusedCrew)}</aside>
       </div>`;
@@ -463,7 +463,7 @@ export class App {
         </div>
         <aside class="debug-tools panel">
           <div class="eyebrow">MAINTENANCE</div><h2>Factory reset</h2>
-          <p>Restore the original demo readings and clear all locally stored app information, including custom metrics, activity history, selected crew member, saved preferences, and AURA conversation.</p>
+          <p>Restore the original demo readings and clear all locally stored app information, including custom metrics, activity history, selected crew member, saved preferences, and Ms Hoa conversation.</p>
           <div class="debug-reset-warning">${icon('warning', 16)} This action cannot be undone.</div>
           <button type="button" class="button button--danger" data-action="factory-reset">${icon('refresh', 15)} Factory reset app</button>
           <div class="debug-tools__meta"><span>App version</span><b>1.6.0</b><span>Storage</span><b>Browser localStorage</b><span>Access</span><b>Open navigation</b></div>
@@ -531,7 +531,7 @@ export class App {
           : []
       };
     } catch (error) {
-      console.warn('Could not load AURA memory:', error);
+      console.warn('Could not load Ms Hoa memory:', error);
       return emptyMemory;
     }
   }
@@ -545,7 +545,7 @@ export class App {
         JSON.stringify(this.auraMemory)
       );
     } catch (error) {
-      console.error('Could not save AURA memory:', error);
+      console.error('Could not save Ms Hoa memory:', error);
     }
   }
 
@@ -791,16 +791,13 @@ export class App {
 
   
   async askModel(question, focused) {
-    const system = `You are AURA, a friendly health assistant for a space crew demo app.
+    const contextResponse = await fetch(new URL('../context.txt', import.meta.url));
+    if (!contextResponse.ok) {
+      throw new Error(`Could not load AI context: ${contextResponse.status}`);
+    }
+    const system = `${(await contextResponse.text()).trim()}
 
-  Use ONLY the website context below and the supplied conversation history.
-  If information is unavailable, say so.
-  Do not invent information.
-  Distinguish personal memories from shared crew memories.
-  Reply in 1-3 short sentences.
-  You are not a doctor and must not diagnose or give treatment advice.
-
-  ${this.buildContext(focused)}`;
+${this.buildContext(focused)}`;
 
     const history = this.getRelevantConversation(
       question,
@@ -910,12 +907,12 @@ export class App {
     try {
       speech = await prepareSpeech(answer);
     } catch (error) {
-      console.warn('AURA speech generation failed:', error);
+      console.warn('Ms Hoa speech generation failed:', error);
     }
     this.aiBusy = false;
 
     if (thinking) thinking.textContent = answer;
-    speech?.play()?.catch(error => console.warn('AURA audio playback failed:', error));
+    speech?.play()?.catch(error => console.warn('Ms Hoa audio playback failed:', error));
 
     // Add the latest conversation
     this.chatMessages.push(
@@ -955,7 +952,7 @@ export class App {
     const item = document.createElement('div');
     item.className = `chat-message chat-message--${role} chat-message--enter`;
     const label = document.createElement('span');
-    label.textContent = role === 'user' ? 'YOU' : 'AURA';
+    label.textContent = role === 'user' ? 'YOU' : 'Ms Hoa';
     const paragraph = document.createElement('p');
     paragraph.textContent = text;
     item.append(label, paragraph);
@@ -983,7 +980,7 @@ export class App {
         if (preview.nextElementSibling) preview.nextElementSibling.hidden = false;
       };
       preview.src = expressionImages[this.expression] || expressionImages.neutral;
-      preview.alt = `AURA ${this.expression} expression`;
+      preview.alt = `Ms Hoa ${this.expression} expression`;
     }
   }
 
@@ -1238,7 +1235,7 @@ export class App {
     if (lower === 'help') {
       lines.push('Available commands:', '  help     show this command list', '  status   show local app diagnostics', '  metrics  list tracked metric names and values', '  alerts   list configured demo-threshold flags', '  clear    clear terminal output', '  whoami   show the current local operator', '  skip     advance the simulation by one day');
     } else if (lower === 'status') {
-      lines.push(`App: Orbit Health 1.6.0`, `View: ${this.view}`, `Theme: dark`, `Metrics: ${this.state.metrics.length}`, `Activity entries: ${this.state.log.length}`, `AURA messages: ${this.chatMessages.length}`, `Focused crew member: ${this.getFocusedCrew().name}`, 'Storage: browser localStorage');
+      lines.push(`App: Orbit Health 1.6.0`, `View: ${this.view}`, `Theme: dark`, `Metrics: ${this.state.metrics.length}`, `Activity entries: ${this.state.log.length}`, `Ms Hoa messages: ${this.chatMessages.length}`, `Focused crew member: ${this.getFocusedCrew().name}`, 'Storage: browser localStorage');
     } else if (lower === 'metrics') {
       this.state.metrics.forEach(metric => lines.push(`- ${metric.name}: ${formatMetricValue(metric)} ${metric.unit || ''}`.trim()));
     } else if (lower === 'alerts') {
