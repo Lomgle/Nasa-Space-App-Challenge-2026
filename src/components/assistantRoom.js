@@ -1,4 +1,4 @@
-import { escapeHTML, icon } from '../lib/ui.js';
+import { escapeHTML, formatAssistantMessage, icon } from '../lib/ui.js';
 import { evaluateMetric, formatMetricValue } from '../lib/health.js';
 
 function buildHealthSummary(metrics, focusedCrew) {
@@ -70,7 +70,7 @@ export function assistantRoom(expression = 'neutral', metrics = [], messages = [
       <div class="assistant-chat" aria-label="Ms Hoa conversation">
         <div class="assistant-chat__header"><b>Conversation</b><span>Stored on this device</span></div>
         <div class="assistant-chat__messages" id="assistant-chat-messages" aria-live="polite" aria-relevant="additions">
-          ${history.map(message => `<div class="chat-message chat-message--${message.role === 'user' ? 'user' : 'assistant'}"><span>${message.role === 'user' ? 'YOU' : 'Ms Hoa'}</span><p>${escapeHTML(message.text)}</p></div>`).join('')}
+          ${history.map(message => `<div class="chat-message chat-message--${message.role === 'user' ? 'user' : 'assistant'}"><span>${message.role === 'user' ? 'YOU' : 'Ms Hoa'}</span><p>${message.role === 'user' ? escapeHTML(message.text) : formatAssistantMessage(message.text)}</p></div>`).join('')}
         </div>
         <div class="assistant-prompts">
           <button type="button" data-action="ask-assistant" data-prompt="Summarize my health">Summarize selected crew</button>

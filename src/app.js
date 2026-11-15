@@ -9,7 +9,7 @@ import {
   createLogEntry,
   formatTimestamp,
 } from "./lib/health.js";
-import { escapeHTML, icon } from "./lib/ui.js";
+import { escapeHTML, formatAssistantMessage, icon } from "./lib/ui.js";
 import { metricCard } from "./components/metricCard.js";
 import { assistantRoom } from "./components/assistantRoom.js";
 import { metricDialog } from "./components/metricDialog.js";
@@ -1203,7 +1203,7 @@ ${this.buildContext(focused)}`;
     }
     this.aiBusy = false;
 
-    if (thinking) thinking.textContent = answer;
+    if (thinking) thinking.innerHTML = formatAssistantMessage(answer);
     speech
       ?.play()
       ?.catch((error) => console.warn("Ms HOA audio playback failed:", error));
@@ -1244,7 +1244,9 @@ ${this.buildContext(focused)}`;
     const label = document.createElement("span");
     label.textContent = role === "user" ? "YOU" : "Ms HOA";
     const paragraph = document.createElement("p");
-    paragraph.textContent = text;
+    if (role === "assistant")
+      paragraph.innerHTML = formatAssistantMessage(text);
+    else paragraph.textContent = text;
     item.append(label, paragraph);
     messages.append(item);
     messages.scrollTo({ top: messages.scrollHeight, behavior: "smooth" });
