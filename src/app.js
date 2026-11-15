@@ -779,6 +779,14 @@ export class App {
   
   buildContext(focused) {
     const crew = this.getCrewSnapshot();
+    const missionDay = this.state.daysElapsed + 1;
+    const missionDate = new Date(Date.now() + this.state.daysElapsed * 86400000);
+    const latestSimulation = [...this.state.log].reverse()
+      .find(entry => entry.metricId === 'simulation');
+    const dailyChanges = this.state.log
+      .filter(entry => entry.note === `Daily simulation · Day ${missionDay}`)
+      .map(entry => `- ${entry.metricName}: ${entry.previousValue} -> ${entry.nextValue}`)
+      .join('\n') || 'No daily reading changes recorded for this mission day.';
 
     const fmt = rows => rows
       .map(r => `${r.name}: ${r.value}${r.severity && r.severity !== 'normal' ? ` [${r.severity.toUpperCase()}: ${r.label}]` : ''}`)
@@ -803,7 +811,7 @@ export class App {
 
     // Recent activity
     const recent = this.state.log.slice(-5)
-      .map(e => `${e.time}: ${e.metricName} ${e.previousValue} -> ${e.nextValue}`)
+      .map(e => `${e.time}: ${e.metricName} ${e.previousValue} -> ${e.nextValue}${e.note ? ` (${e.note})` : ''}`)
       .join('\n') || 'none';
 
     // Personal memories
@@ -820,7 +828,13 @@ export class App {
 
     // Combine all website information
     return `
-  Today: ${new Date().toLocaleDateString()}
+  CURRENT MISSION SIMULATION (use this as the source of truth for Skip Day questions):
+  Mission day: ${missionDay}
+  Simulated date: ${missionDate.toLocaleDateString()}
+  Days advanced: ${this.state.daysElapsed}
+  Latest Skip Day: ${latestSimulation ? `${latestSimulation.previousValue} -> ${latestSimulation.nextValue}` : 'No Skip Day actions yet.'}
+  Reading changes for the current mission day:
+  ${dailyChanges}
 
   FOCUSED CREW MEMBER:
   ${focused.name} (${focused.role})
