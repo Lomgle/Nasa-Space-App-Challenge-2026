@@ -1,0 +1,35 @@
+[
+  {
+    "id": "elena-voss",
+    "default": true,
+    "name": "Elena Voss",
+    "initials": "EV",
+    "avatar": "👩🏻‍🚀",
+    "role": "Expedition specialist",
+    "description": "An expedition specialist dedicated to supporting crew operations and maintaining mission readiness."
+  },
+  {
+    "id": "jun-park",
+    "name": "Jun Park",
+    "initials": "JP",
+    "avatar": "👨🏻‍🚀",
+    "role": "Flight engineer",
+    "description": "A methodical engineer who specializes in spacecraft systems, maintenance, and mission reliability."
+  },
+  {
+    "id": "amara-okafor",
+    "name": "Amara Okafor",
+    "initials": "AO",
+    "avatar": "👩🏾‍🚀",
+    "role": "Mission scientist",
+    "description": "A curious scientist dedicated to research and discovering new possibilities beyond Earth."
+  },
+  {
+    "id": "mateo-ruiz",
+    "name": "Mateo Ruiz",
+    "initials": "MR",
+    "avatar": "👨🏽‍🚀",
+    "role": "Pilot",
+    "description": "A steady and experienced pilot responsible for flight operations and crew coordination."
+  }
+]

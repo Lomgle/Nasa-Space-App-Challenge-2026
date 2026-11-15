@@ -1,5 +1,5 @@
 import { escapeHTML, icon } from '../lib/ui.js';
-import { METRIC_CATEGORIES } from '../data/metricRegistry.js';
+import { METRIC_CATEGORIES } from '../data/store.js';
 
 export function metricDialog(metric = null) {
   const isNew = !metric;

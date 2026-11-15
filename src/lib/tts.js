@@ -5,26 +5,19 @@ const MODEL_ID = 'onnx-community/Kokoro-82M-v1.0-ONNX';
 const VOICE = 'af_heart';   // try af_bella, af_sky, af_nicole
 const PITCH = 1.1;          // 1 = normal, higher = cuter
 
-let tts = null;
-let loading = null;
 let currentAudio = null;
-let currentUrl = null;
+let currentAudioUrl = null;
 let requestId = 0;
 
-function loadModel() {
-  if (!loading) {
-    loading = import(KOKORO_URL)
-      .then(({ KokoroTTS }) => KokoroTTS.from_pretrained(MODEL_ID, { dtype: 'q8', device: 'wasm' }))
-      .then(model => { tts = model; console.log('AURA voice ready'); })
-      .catch(err => { loading = null; console.warn('AURA voice failed to load:', err); });
-  }
-  return loading;
-}
-loadModel();
-
 function releaseAudio() {
-  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-  if (currentUrl) { URL.revokeObjectURL(currentUrl); currentUrl = null; }
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio = null;
+  }
+  if (currentAudioUrl) {
+    URL.revokeObjectURL(currentAudioUrl);
+    currentAudioUrl = null;
+  }
 }
 
 export function stopSpeaking() {
@@ -32,9 +25,12 @@ export function stopSpeaking() {
   releaseAudio();
 }
 
-export async function prepareSpeech(text) {
-  if (!tts) return null;
-  const message = String(text || '').replace(/[\p{Extended_Pictographic}*_#`]/gu, '').trim();
+// Generates the audio but does NOT play it yet.
+// Returns { play() }, or null if there is nothing to say.
+export async function prepareSpeech(text, timeoutMs = 20000) {
+  const message = String(text || '')
+    .replace(/[\p{Extended_Pictographic}*_#`]/gu, '')
+    .trim();
   if (!message) return null;
 
   const thisRequest = requestId;
@@ -60,6 +56,7 @@ export async function prepareSpeech(text) {
   };
 }
 
+// Still available if you want the old "generate and play" behaviour elsewhere.
 export async function speakText(text) {
   const speech = await prepareSpeech(text);
   if (speech) await speech.play();

@@ -1,1 +1,5 @@
 model/
+
+# Keep raw imported health/mission data on the local device, not in source control.
+raw_data/*.csv
+raw_data/*.json

@@ -4,7 +4,9 @@
   "version": "1.6.0",
   "type": "module",
   "scripts": {
-    "start": "python3 -m http.server 4173",
-    "serve": "python3 -m http.server 4173"
+    "start": "node server.js",
+    "serve": "node server.js",
+    "validate": "node scripts/validate-data.mjs",
+    "test": "node --test test/*.test.mjs"
   }
 }
