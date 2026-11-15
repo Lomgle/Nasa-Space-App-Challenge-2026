@@ -6120,7 +6120,7 @@ CONTAINER & MEDIA QUERIES
     justify-content: space-between;
   }
 }
-}
+
 /* rantuff
 /* AURA speaking effects: voice-reactive bounce and glow */
 :root { --aura-glow: 94, 255, 150; }   /* R, G, B of the light */

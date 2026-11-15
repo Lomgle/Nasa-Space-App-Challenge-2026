@@ -8,6 +8,22 @@ const PITCH = 1.1;          // 1 = normal, higher = cuter
 let currentAudio = null;
 let currentAudioUrl = null;
 let requestId = 0;
+let ttsPromise = null;
+
+async function getTts() {
+  if (!ttsPromise) {
+    ttsPromise = (async () => {
+      try {
+        const { KokoroTTS } = await import(KOKORO_URL);
+        return await KokoroTTS.from_pretrained(MODEL_ID, { dtype: 'q8' });
+      } catch (error) {
+        ttsPromise = null;
+        throw error;
+      }
+    })();
+  }
+  return ttsPromise;
+}
 
 function releaseAudio() {
   if (currentAudio) {
@@ -34,6 +50,7 @@ export async function prepareSpeech(text, timeoutMs = 20000) {
   if (!message) return null;
 
   const thisRequest = requestId;
+  const tts = await getTts();
   const audio = await tts.generate(message, { voice: VOICE, speed: 1 / PITCH });
   if (thisRequest !== requestId) return null;
 
@@ -49,7 +66,7 @@ export async function prepareSpeech(text, timeoutMs = 20000) {
       if (thisRequest !== requestId) { URL.revokeObjectURL(url); return Promise.resolve(); }
       releaseAudio();
       currentAudio = el;
-      currentUrl = url;
+      currentAudioUrl = url;
       el.addEventListener('ended', () => { if (currentAudio === el) releaseAudio(); }, { once: true });
       return el.play();
     }
