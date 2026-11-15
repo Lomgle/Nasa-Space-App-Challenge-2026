@@ -328,7 +328,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
           </nav>
           <div class="sidebar-divider"></div>
           <div class="mission-label">CREW MONITORING</div>
-          <div class="crew-card"><div class="crew-avatar sidebar-profile-avatar"><span class="avatar-content" data-profile-avatar-content>${this.renderProfileAvatar()}</span><span class="crew-online"></span></div><div><b>Elena Voss</b><span>Expedition specialist</span></div><span class="crew-more">···</span></div>
+          <div class="crew-card"><div class="crew-avatar sidebar-profile-avatar"><span class="avatar-content" data-profile-avatar-content>${this.renderProfileAvatar()}</span><span class="crew-online"></span></div><div><b>Elena Voss</b><span>Expedition specialist</span></div></div>
           <div class="sidebar-bottom">
             <div class="offline-card"><span class="offline-icon">${icon("shield", 17)}</span><div><b>Offline-ready</b><span>Data stays on this device</span></div><span class="offline-dot"></span></div>
             <div class="sidebar-footer"><span>ORBITAL SYSTEMS</span><span>BUILD 1.6.0</span></div>
@@ -356,7 +356,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
           </header>
 
           ${this.view === "overview" ? this.renderOverview({ date }) : this.view === "crew" ? this.renderCrew({ date }) : this.view === "comms" ? this.renderCrewComms() : this.view === "environment" ? this.renderEnvironment({ date }) : this.view === "import" ? importDataPage({ dataset: this.importData, page: this.importDataPage, status: this.importDataStatus }) : this.view === "debug" ? this.renderDebug({ date }) : this.renderActivity({ date })}
-          <footer class="page-footer"><span>ORBIT HEALTH <i>•</i> CREW MONITORING INTERFACE</span><span>Demo data · Local device storage</span></footer>
+          <footer class="page-footer"><span>ORBIT HEALTH <i>•</i> CREW MONITORING INTERFACE</span></footer>
         </main>
         <div id="modal-root"></div>
       </div>
@@ -401,7 +401,6 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
             ${emergencies.length ? `<div class="crew-emergency-strip"><div class="crew-emergency-strip__title">${icon("warning", 16)} <b>${emergencies.length} CREW IN EMERGENCY REVIEW</b></div><div class="crew-emergency-strip__items">${emergencies.map((member) => `<button type="button" data-action="focus-crew" data-id="${escapeHTML(member.id)}"><span class="crew-emergency-avatar"><span class="avatar-content" ${member.id === "elena-voss" ? "data-profile-avatar-content" : ""}>${this.renderAvatarContent(member.avatar, member.initials)}</span></span><span>${escapeHTML(member.name)}</span> <em>${escapeHTML(member.statusLabel)}</em></button>`).join("")}</div></div>` : `<div class="crew-emergency-strip crew-emergency-strip--clear">${icon("shield", 16)} <b>No crew health emergencies in the current demo snapshot.</b></div>`}
             <div class="crew-heartbeat-list">${heartbeatCards}</div>
           </section>
-          <div class="demo-note"><span>${icon("shield", 14)}</span><p><b>Prototype notice:</b> Readings and thresholds are synthetic examples. Ms HOA is a local rule-based preview, not a connected AI model or medical device. Do not use this prototype for diagnosis, treatment, fitness-for-duty, or flight-safety decisions.</p></div>
         </div>
         <aside class="assistant-column assistant-column--sticky">${assistantRoom(this.expression, this.state.metrics, this.chatMessages, this.chatExpanded, focusedCrew)}</aside>
       </div>`;
@@ -701,8 +700,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
             <div class="crew-detail-footer"><span class="crew-detail-data-note">${member.id === "elena-voss" ? "Values from your local dashboard" : "Synthetic teammate preview data"}</span><button type="button" class="button button--primary" data-action="focus-crew" data-id="${escapeHTML(member.id)}">Focus in Crew Support ${icon("arrow", 14)}</button></div>
           </div>
         </div>
-      </section>
-      <div class="demo-note"><span>${icon("shield", 14)}</span><p><b>Prototype notice:</b> Elena’s values come from this browser’s local dashboard. Other teammate profiles are synthetic placeholders. Replace them with authenticated, mission-approved data before any real operational use.</p></div>`;
+      </section>`;
   }
 
   renderActivity({ date }) {
