@@ -320,7 +320,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
       <div class="app-shell ${this.sidebarCollapsed ? "sidebar-collapsed" : ""}" data-theme="dark">
         <aside class="sidebar">
           <div class="sidebar-brand-row">
-            <a class="brand" href="#overview" aria-label="Orbit Health home"><span class="brand-mark"><span></span><span></span><span></span></span><span class="brand-wordmark">orbit<span>health</span></span></a>
+            <a class="brand" href="#overview" aria-label="Orbit Health home"><span class="brand-mark"><span></span><span></span><span></span></span><span class="brand-wordmark">Cosmi<span>tility</span></span></a>
             <button class="sidebar-toggle" data-action="toggle-sidebar" aria-label="${this.sidebarCollapsed ? "Expand" : "Collapse"} sidebar" aria-expanded="${!this.sidebarCollapsed}" title="${this.sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}">${icon(this.sidebarCollapsed ? "panelLeftOpen" : "panelLeftClose", 17)}</button>
           </div>
           <div class="mission-label">MISSION CONSOLE</div>
@@ -338,7 +338,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
           <div class="crew-card"><div class="crew-avatar sidebar-profile-avatar"><span class="avatar-content" data-profile-avatar-content>${this.renderProfileAvatar()}</span><span class="crew-online"></span></div><div><b>Elena Voss</b><span>Expedition specialist</span></div></div>
           <div class="sidebar-bottom">
             <div class="offline-card"><span class="offline-icon">${icon("shield", 17)}</span><div><b>Offline-ready</b><span>Data stays on this device</span></div><span class="offline-dot"></span></div>
-            <div class="sidebar-footer"><span>ORBITAL SYSTEMS</span><span>BUILD 1.6.0</span></div>
+            <div class="sidebar-footer"><span>Cosmitility SYSTEMS</span><span>BUILD 1.6.0</span></div>
           </div>
         </aside>
 
@@ -363,7 +363,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
           </header>
 
           ${this.view === "overview" ? this.renderOverview({ date }) : this.view === "crew" ? this.renderCrew({ date }) : this.view === "comms" ? this.renderCrewComms() : this.view === "environment" ? this.renderEnvironment({ date }) : this.view === "import" ? importDataPage({ dataset: this.importData, page: this.importDataPage, status: this.importDataStatus, review: this.importReview }) : this.view === "debug" ? this.renderDebug({ date }) : this.renderActivity({ date })}
-          <footer class="page-footer"><span>ORBIT HEALTH <i>•</i> CREW MONITORING INTERFACE</span></footer>
+          <footer class="page-footer"><span>Cosmitility <i>•</i> CREW MONITORING INTERFACE</span></footer>
         </main>
         <div id="modal-root"></div>
       </div>
@@ -394,7 +394,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
       <div class="overview-layout">
         <div class="overview-content-column">
           <section class="page-header overview-page-header">
-            <div><div class="eyebrow">EXPEDITION 07 <span>·</span> ORBITAL HEALTH</div><h1>Your health overview</h1></div>
+            <div><div class="eyebrow">EXPEDITION 07 <span>·</span> COSMITILITY</div><h1>Your health overview</h1></div>
             <div class="header-date"><span>${icon("clock", 15)}</span><div><b>${date}</b><small>Updated locally at ${formatTimestamp()}</small></div></div>
           </section>
 
@@ -405,7 +405,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
 
           <section class="crew-pulse-section">
             <div class="section-heading crew-pulse-heading"><div><div class="eyebrow">CREW TELEMETRY</div><h2>Crew heartbeat & connectivity</h2></div><span class="subtle-chip">${crew.length} CREW MEMBERS</span></div>
-            ${emergencies.length ? `<div class="crew-emergency-strip"><div class="crew-emergency-strip__title">${icon("warning", 16)} <b>${emergencies.length} CREW IN EMERGENCY REVIEW</b></div><div class="crew-emergency-strip__items">${emergencies.map((member) => `<button type="button" data-action="focus-crew" data-id="${escapeHTML(member.id)}"><span class="crew-emergency-avatar"><span class="avatar-content" ${member.id === "elena-voss" ? "data-profile-avatar-content" : ""}>${this.renderAvatarContent(member.avatar, member.initials)}</span></span><span>${escapeHTML(member.name)}</span> <em>${escapeHTML(member.statusLabel)}</em></button>`).join("")}</div></div>` : `<div class="crew-emergency-strip crew-emergency-strip--clear">${icon("shield", 16)} <b>No crew health emergencies in the current demo snapshot.</b></div>`}
+            ${emergencies.length ? `<div class="crew-emergency-strip"><div class="crew-emergency-strip__title">${icon("warning", 16)} <b>${emergencies.length} CREW IN EMERGENCY REVIEW</b></div><div class="crew-emergency-strip__items">${emergencies.map((member) => `<button type="button" data-action="focus-crew" data-id="${escapeHTML(member.id)}"><span class="crew-emergency-avatar"><span class="avatar-content" ${member.id === "elena-voss" ? "data-profile-avatar-content" : ""}>${this.renderAvatarContent(member.avatar, member.initials)}</span></span><span>${escapeHTML(member.name)}</span> <em>${escapeHTML(member.statusLabel)}</em></button>`).join("")}</div></div>` : `<div class="crew-emergency-strip crew-emergency-strip--clear">${icon("shield", 16)} <b>No crew health emergencies in the current snapshot.</b></div>`}
             <div class="crew-heartbeat-list">${heartbeatCards}</div>
           </section>
         </div>
@@ -453,7 +453,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
           ? "Emergency review"
           : severity === "warning"
             ? "Needs review"
-            : "Within demo ranges",
+            : "Within ranges",
       emergency: severity === "critical",
       heartRate,
       signal: this.state.personalLink?.signal ?? ELENA.link.signal,
@@ -624,7 +624,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
               `<button type="button" class="emergency-crew-item" data-action="select-crew-page" data-id="${escapeHTML(person.id)}"><span class="emergency-crew-avatar"><span class="avatar-content" ${person.id === "elena-voss" ? "data-profile-avatar-content" : ""}>${this.renderAvatarContent(person.avatar, person.initials)}</span></span><span><b>${escapeHTML(person.name)}</b><small>${escapeHTML(person.statusLabel)}</small></span><em>VIEW</em></button>`,
           )
           .join("")
-      : '<div class="emergency-empty">No crew health emergencies in the current demo snapshot.</div>';
+      : '<div class="emergency-empty">No crew health emergencies in the current snapshot.</div>';
     const avatarMarkup = this.renderAvatarContent(
       member.avatar,
       member.initials,
@@ -728,7 +728,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
           'Debug session opened. Type "help" to list available commands.',
         ];
     return `
-      <section class="page-header debug-page-header"><div><div class="eyebrow">MISSION CONSOLE <span>·</span> SYSTEM TOOLS</div><h1>Debug</h1><p class="page-subtitle">Local diagnostics and demo-state maintenance.</p></div><div class="header-date"><span>${icon("clock", 15)}</span><div><b>${date}</b><small>Local debug session</small></div></div></section>
+      <section class="page-header debug-page-header"><div><div class="eyebrow">MISSION CONSOLE <span>·</span> SYSTEM TOOLS</div><h1>Debug</h1><p class="page-subtitle">Local diagnostics and maintenance.</p></div><div class="header-date"><span>${icon("clock", 15)}</span><div><b>${date}</b><small>Local debug session</small></div></div></section>
       <section class="debug-layout">
         <div class="debug-terminal panel">
           <div class="debug-terminal__top"><div><span class="terminal-status-dot"></span><b>ORBIT TERMINAL</b><small>LOCAL / MOCK ENVIRONMENT</small></div><button type="button" class="button button--quiet" data-action="terminal-clear">Clear output</button></div>
@@ -737,7 +737,7 @@ this.state.crewSnapshots = this.state.crewSnapshots.map(member => ({
         </div>
         <aside class="debug-tools panel">
           <div class="eyebrow">MAINTENANCE</div><h2>Factory reset</h2>
-          <p>Restore the original demo readings and clear all locally stored app information, including custom metrics, activity history, selected crew member, saved preferences, and Ms HOA conversation.</p>
+          <p>Restore the original readings and clear all locally stored app information, including custom metrics, activity history, selected crew member, saved preferences, and Ms HOA conversation.</p>
           <div class="debug-reset-warning">${icon("warning", 16)} This action cannot be undone.</div>
           <button type="button" class="button button--danger" data-action="factory-reset">${icon("refresh", 15)} Factory reset app</button>
           <div class="debug-tools__meta"><span>App version</span><b>1.6.0</b><span>Storage</span><b>Browser localStorage</b><span>Access</span><b>Open navigation</b></div>
@@ -1130,23 +1130,23 @@ ${this.buildContext(focused)}`;
         const readings = focused.readings
           .map(([label, value]) => `${label}: ${value}`)
           .join("; ");
-        answer = `${focused.name} is the selected crew member. ${focused.status === "normal" ? "This synthetic profile has no demo review flags." : "This synthetic profile is marked for review by its example rules."} Latest snapshot: ${readings}. This is not a medical assessment.`;
+        answer = `${focused.name} is the selected crew member. ${focused.status === "normal" ? "This synthetic profile has no review flags." : "This synthetic profile is marked for review by its example rules."} Latest snapshot: ${readings}. This is not a medical assessment.`;
       } else {
         const okay = this.state.metrics.length - alerts.length;
         answer = alerts.length
-          ? `${okay} of ${this.state.metrics.length} tracked metrics are within their configured demo ranges. Items marked for review: ${alerts.map((item) => `${item.metric.name} (${formatMetricValue(item.metric)} ${item.metric.unit || ""}; ${item.label})`.trim()).join("; ")}. This is a rule-based summary, not a medical assessment.`
-          : `All ${this.state.metrics.length} tracked metrics are currently within their configured demo ranges. This is a rule-based summary, not a medical assessment.`;
+          ? `${okay} of ${this.state.metrics.length} tracked metrics are within their configured ranges. Items marked for review: ${alerts.map((item) => `${item.metric.name} (${formatMetricValue(item.metric)} ${item.metric.unit || ""}; ${item.label})`.trim()).join("; ")}. This is a rule-based summary, not a medical assessment.`
+          : `All ${this.state.metrics.length} tracked metrics are currently within their configured ranges. This is a rule-based summary, not a medical assessment.`;
       }
     } else if (/alert|review|flag|critical|warning/.test(q)) {
       if (focused.id !== "elena-voss") {
         answer =
           focused.status === "normal"
-            ? `${focused.name}'s synthetic profile has no current demo review flags.`
+            ? `${focused.name}'s synthetic profile has no current review flags.`
             : `${focused.name}'s synthetic profile is marked for review. The sample snapshot is: ${focused.readings.map(([label, value]) => `${label}: ${value}`).join("; ")}.`;
       } else {
         answer = alerts.length
-          ? `The current demo rules flag ${alerts.length} item${alerts.length === 1 ? "" : "s"}: ${alerts.map((item) => `${item.metric.name} — ${item.label}`).join("; ")}. Open the relevant metric card to review the recorded value and its configured example threshold.`
-          : "No metric currently crosses a configured demo threshold.";
+          ? `The current rules flag ${alerts.length} item${alerts.length === 1 ? "" : "s"}: ${alerts.map((item) => `${item.metric.name} — ${item.label}`).join("; ")}. Open the relevant metric card to review the recorded value and its configured example threshold.`
+          : "No metric currently crosses a configured threshold.";
       }
     } else {
       const match = this.state.metrics.find(
@@ -1166,12 +1166,12 @@ ${this.buildContext(focused)}`;
                 label.toLowerCase().includes("glucose"))),
         );
         answer = reading
-          ? `${focused.name}'s ${reading[0].toLowerCase()} sample is ${reading[1]}. This is synthetic demo data, not a clinical interpretation.`
-          : `${focused.name} is selected in Crew Support. I can summarize this profile's displayed sample readings or list its demo review status.`;
+          ? `${focused.name}'s ${reading[0].toLowerCase()} sample is ${reading[1]}.`
+          : `${focused.name} is selected in Crew Support. I can summarize this profile's displayed sample readings or list its review status.`;
       } else {
         answer = match
-          ? `${match.name} is recorded at ${formatMetricValue(match)} ${match.unit || ""}. Its current demo status is ${evaluateMetric(match).severity === "normal" ? "within configured ranges" : "marked for review"} (${evaluateMetric(match).label}). I can summarize saved readings, but I cannot interpret them clinically.`
-          : `I’m focused on ${focused.name}. I can summarize the readings stored in this browser and list demo-threshold flags. Try asking for a health summary, current alerts, heart rate, blood pressure, sleep, or mood.`;
+          ? `${match.name} is recorded at ${formatMetricValue(match)} ${match.unit || ""}. Its current status is ${evaluateMetric(match).severity === "normal" ? "within configured ranges" : "marked for review"} (${evaluateMetric(match).label}). I can summarize saved readings, but I cannot interpret them clinically.`
+          : `I’m focused on ${focused.name}. I can summarize the readings stored in this browser and list threshold flags. Try asking for a health summary, current alerts, heart rate, blood pressure, sleep, or mood.`;
       }
     }
 
@@ -1473,14 +1473,14 @@ ${this.buildContext(focused)}`;
     reading.severity = severity;
     reading.label =
       severity === "critical"
-        ? "Critical demo threshold crossed"
-        : "Warning demo threshold crossed";
+        ? "Critical threshold crossed"
+        : "Warning threshold crossed";
   }
 
   evaluateCrewReading(reading) {
     const numeric = Number.parseFloat(String(reading.value).replace(",", "."));
     let severity = "normal";
-    let label = "Within configured demo range";
+    let label = "Within configured normal range";
     if (reading.id === "blood-pressure") {
       const [sys, dia] = String(reading.value).split(/[ /]/).map(Number);
       if (sys >= 140 || dia >= 90) severity = "critical";
@@ -1505,7 +1505,7 @@ ${this.buildContext(focused)}`;
     reading.label =
       severity === "normal"
         ? label
-        : `${severity === "critical" ? "Critical" : "Warning"} demo threshold crossed`;
+        : `${severity === "critical" ? "Critical" : "Warning"} threshold crossed`;
   }
 
   simulateCrewDay(dayNumber) {
@@ -1557,7 +1557,7 @@ ${this.buildContext(focused)}`;
           ? "Emergency review"
           : member.status === "warning"
             ? "Needs review"
-            : "Within demo ranges";
+            : "Within normal ranges";
       member.emergency = member.status === "critical";
       const linkRoll = Math.random();
       member.connectivity =
@@ -1712,7 +1712,7 @@ ${this.buildContext(focused)}`;
         "  help     show this command list",
         "  status   show local app diagnostics",
         "  metrics  list tracked metric names and values",
-        "  alerts   list configured demo-threshold flags",
+        "  alerts   list configured threshold flags",
         "  clear    clear terminal output",
         "  whoami   show the current local operator",
         "  skip     advance the simulation by one day",
@@ -1737,14 +1737,14 @@ ${this.buildContext(focused)}`;
     } else if (lower === "alerts") {
       const alerts = this.getAlerts();
       if (!alerts.length)
-        lines.push("No metric currently crosses a configured demo threshold.");
+        lines.push("No metric currently crosses the threshold.");
       alerts.forEach((alert) =>
         lines.push(
           `- ${alert.metric.name}: ${alert.severity.toUpperCase()} / ${alert.label}`,
         ),
       );
     } else if (lower === "whoami") {
-      lines.push("local operator / offline demo workspace");
+      lines.push("local operator / a cool person⭐");
     } else if (lower === "skip") {
       this.skipDay();
       return;
@@ -1811,7 +1811,7 @@ ${this.buildContext(focused)}`;
     this.crewSummaryIndexTouched = false;
     this.view = "overview";
     this.render();
-    this.showToast("Factory reset complete. Demo data restored.");
+    this.showToast("Factory reset complete. Default data restored.");
   }
 
   toggleSidebar() {
@@ -2304,7 +2304,7 @@ ${this.buildContext(focused)}`;
         operator: "lt",
         value: lowerLimit,
         severity: "warning",
-        label: "Below lower demo limit",
+        label: "Below lower limit",
       });
     if (upperLimit !== null)
       thresholds.push({
@@ -2312,7 +2312,7 @@ ${this.buildContext(focused)}`;
         operator: "gt",
         value: upperLimit,
         severity: "warning",
-        label: "Above upper demo limit",
+        label: "Above upper limit",
       });
     const metric = {
       id,

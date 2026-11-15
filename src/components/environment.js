@@ -46,17 +46,17 @@ export function environmentPage({ environment, history, date, daysElapsed }) {
   ].filter(Boolean).length;
   const conclusion = radiationDanger || cabinAlerts
     ? 'ENVIRONMENTAL REVIEW REQUIRED'
-    : 'WITHIN CONFIGURED DEMO ENVELOPE';
+    : 'WITHIN CONFIGURED ENVELOPE';
   const severity = radiationDanger ? 'critical' : cabinAlerts ? 'warning' : 'normal';
   const gravityValue = Number(e.gravityG) === 0 ? 'NONE' : `${Number(e.gravityG).toFixed(3)} g`;
   return `
     <section class="page-header environment-page-header">
-      <div><div class="eyebrow">EXPEDITION 07 <span>·</span> FLIGHT CONDITIONS</div><h1>Environment</h1><p class="page-subtitle">Spacecraft and external environment telemetry · illustrative demo values</p></div>
+      <div><div class="eyebrow">EXPEDITION 07 <span>·</span> FLIGHT CONDITIONS</div><h1>Environment</h1><p class="page-subtitle">Spacecraft and external environment telemetry</p></div>
       <div class="header-date"><span>${icon('activity', 15)}</span><div><b>MISSION DAY ${String(daysElapsed + 1).padStart(2, '0')}</b><small>${escapeHTML(date)}</small></div></div>
     </section>
     <section class="environment-space-grid">
       <article class="environment-radiation-panel panel ${radiationDanger ? 'environment-radiation-panel--alert' : ''}">
-        <div class="environment-panel-heading"><div><div class="eyebrow">EXTERNAL ENVIRONMENT</div><h2>Space radiation</h2></div><span class="environment-status-pill environment-status-pill--${radiationDanger ? 'critical' : 'normal'}">${radiationDanger ? 'DANGER LIMIT CROSSED' : 'WITHIN DEMO LIMIT'}</span></div>
+        <div class="environment-panel-heading"><div><div class="eyebrow">EXTERNAL ENVIRONMENT</div><h2>Space radiation</h2></div><span class="environment-status-pill environment-status-pill--${radiationDanger ? 'critical' : 'normal'}">${radiationDanger ? 'DANGER LIMIT CROSSED' : 'WITHIN LIMIT'}</span></div>
         <div class="environment-radiation-current"><strong>${Number(e.radiation.value).toFixed(2)}</strong><span>µSv/h</span><small>Current radiation level</small></div>
         ${radiationGraph(history.radiation, Number(e.radiation.dangerLimit))}
         <div class="environment-graph-foot"><span>UPPER DANGER LIMIT</span><b>${Number(e.radiation.dangerLimit).toFixed(2)} µSv/h</b></div>
@@ -69,16 +69,15 @@ export function environmentPage({ environment, history, date, daysElapsed }) {
     <section class="environment-cabin-section">
       <div class="section-heading"><div><div class="eyebrow">INTERNAL ENVIRONMENT</div><h2>Spacecraft cabin conditions</h2></div><span class="subtle-chip">5 MEASUREMENTS</span></div>
       <div class="environment-cabin-grid">
-        ${valueCard('CABIN TEMPERATURE', Number(cabin.temperature.value).toFixed(1), '°C', `Demo range ${cabin.temperature.lower}–${cabin.temperature.upper} °C`, cabin.temperature.value < cabin.temperature.lower || cabin.temperature.value > cabin.temperature.upper ? 'warning' : 'normal', '⌁')}
-        ${valueCard('CABIN PRESSURE', Number(cabin.pressure.value).toFixed(1), 'kPa', `Demo range ${cabin.pressure.lower}–${cabin.pressure.upper} kPa`, cabin.pressure.value < cabin.pressure.lower || cabin.pressure.value > cabin.pressure.upper ? 'warning' : 'normal', '◉')}
-        ${valueCard('OXYGEN', Number(cabin.oxygen.value).toFixed(1), '%', `Demo range ${cabin.oxygen.lower}–${cabin.oxygen.upper}%`, cabin.oxygen.value < cabin.oxygen.lower || cabin.oxygen.value > cabin.oxygen.upper ? 'warning' : 'normal', 'O₂')}
-        ${valueCard('CARBON DIOXIDE', Math.round(cabin.co2.value).toLocaleString(), 'ppm', `Demo upper limit ${cabin.co2.upper} ppm`, cabin.co2.value > cabin.co2.upper ? 'warning' : 'normal', 'CO₂')}
-        ${valueCard('HUMIDITY', Math.round(cabin.humidity.value), '%', `Demo range ${cabin.humidity.lower}–${cabin.humidity.upper}%`, cabin.humidity.value < cabin.humidity.lower || cabin.humidity.value > cabin.humidity.upper ? 'warning' : 'normal', '≈')}
+        ${valueCard('CABIN TEMPERATURE', Number(cabin.temperature.value).toFixed(1), '°C', `Range ${cabin.temperature.lower}–${cabin.temperature.upper} °C`, cabin.temperature.value < cabin.temperature.lower || cabin.temperature.value > cabin.temperature.upper ? 'warning' : 'normal', '⌁')}
+        ${valueCard('CABIN PRESSURE', Number(cabin.pressure.value).toFixed(1), 'kPa', `Range ${cabin.pressure.lower}–${cabin.pressure.upper} kPa`, cabin.pressure.value < cabin.pressure.lower || cabin.pressure.value > cabin.pressure.upper ? 'warning' : 'normal', '◉')}
+        ${valueCard('OXYGEN', Number(cabin.oxygen.value).toFixed(1), '%', `Range ${cabin.oxygen.lower}–${cabin.oxygen.upper}%`, cabin.oxygen.value < cabin.oxygen.lower || cabin.oxygen.value > cabin.oxygen.upper ? 'warning' : 'normal', 'O₂')}
+        ${valueCard('CARBON DIOXIDE', Math.round(cabin.co2.value).toLocaleString(), 'ppm', `Upper limit ${cabin.co2.upper} ppm`, cabin.co2.value > cabin.co2.upper ? 'warning' : 'normal', 'CO₂')}
+        ${valueCard('HUMIDITY', Math.round(cabin.humidity.value), '%', `Range ${cabin.humidity.lower}–${cabin.humidity.upper}%`, cabin.humidity.value < cabin.humidity.lower || cabin.humidity.value > cabin.humidity.upper ? 'warning' : 'normal', '≈')}
       </div>
     </section>
     <section class="environment-conclusion environment-conclusion--${severity} panel">
       <div class="environment-conclusion__icon">${icon(severity === 'normal' ? 'shield' : 'warning', 20)}</div>
-      <div><div class="eyebrow">ENVIRONMENTAL CONCLUSION</div><h2>${conclusion}</h2><p>${severity === 'normal' ? 'Current illustrative spacecraft and external readings are within the configured demo ranges.' : `${radiationDanger ? 'Space radiation is above its configured demo danger limit. ' : ''}${cabinAlerts ? `${cabinAlerts} cabin measurement${cabinAlerts === 1 ? '' : 's'} need review.` : ''}`}</p></div>
-    </section>
-    <div class="demo-note"><span>${icon('shield', 14)}</span><p><b>Simulation notice:</b> All values, danger limits and conclusions are synthetic examples for interface testing. They are not spacecraft operating limits or safety guidance.</p></div>`;
+      <div><div class="eyebrow">ENVIRONMENTAL CONCLUSION</div><h2>${conclusion}</h2><p>${severity === 'normal' ? 'Current illustrative spacecraft and external readings are within the configured ranges.' : `${radiationDanger ? 'Space radiation is above its danger limit. ' : ''}${cabinAlerts ? `${cabinAlerts} cabin measurement${cabinAlerts === 1 ? '' : 's'} need review.` : ''}`}</p></div>
+    </section>`;
 }

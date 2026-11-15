@@ -74,7 +74,7 @@ export function buildDerived(astros, hlth) {
     return {
       ...a, signal: link.signal, connectivity: link.connectivity, waveform: hlth[a.id].waveform,
       status, emergency: status === 'critical',
-      statusLabel: statusLabel || (status === 'critical' ? 'Emergency review' : status === 'warning' ? 'Needs review' : 'Within demo ranges'),
+      statusLabel: statusLabel || (status === 'critical' ? 'Emergency review' : status === 'warning' ? 'Needs review' : 'Within normal ranges'),
       heartRate: hr ? Number.parseInt(hr.value, 10) : null,
       metricReadings, readings: metricReadings.map((r) => [r.name, r.value])
     };

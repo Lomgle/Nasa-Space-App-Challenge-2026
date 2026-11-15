@@ -3,9 +3,9 @@ import { evaluateMetric, formatMetricValue } from '../lib/health.js';
 
 function buildHealthSummary(metrics, focusedCrew) {
   if (focusedCrew && focusedCrew.id !== 'elena-voss') {
-    const flag = focusedCrew.status === 'normal' ? 'No demo flags are currently recorded for this profile.' : 'This synthetic profile is marked for review by its example rules.';
+    const flag = focusedCrew.status === 'normal' ? 'No flags are currently recorded for this profile.' : 'This synthetic profile is marked for review by its example rules.';
     const readings = (focusedCrew.readings || []).map(([label, value]) => `${label}: ${value}`).join(' · ');
-    return `${focusedCrew.name} is the selected crew member. ${flag} Latest demo snapshot: ${readings}. These sample values are not medical guidance.`;
+    return `${focusedCrew.name} is the selected crew member. ${flag} Latest snapshot: ${readings}. These sample values are not medical guidance.`;
   }
 
   const checked = metrics.map(metric => ({ metric, result: evaluateMetric(metric) }));
@@ -13,14 +13,14 @@ function buildHealthSummary(metrics, focusedCrew) {
   const normalCount = checked.length - alerts.length;
   if (!metrics.length) return 'There are no health metrics to summarize yet. Add a metric or enter a reading to begin.';
   const overview = alerts.length
-    ? `${normalCount} of ${metrics.length} tracked metrics are within their configured demo ranges. ${alerts.length} ${alerts.length === 1 ? 'item is' : 'items are'} marked for review: ${alerts.map(item => item.metric.name).join(', ')}.`
-    : `All ${metrics.length} tracked metrics are within their configured demo ranges.`;
+    ? `${normalCount} of ${metrics.length} tracked metrics are within their configured ranges. ${alerts.length} ${alerts.length === 1 ? 'item is' : 'items are'} marked for review: ${alerts.map(item => item.metric.name).join(', ')}.`
+    : `All ${metrics.length} tracked metrics are within their configured ranges.`;
   const heartRate = metrics.find(metric => metric.id === 'heart-rate');
   const sleep = metrics.find(metric => metric.id === 'sleep');
   const context = [];
   if (heartRate) context.push(`heart rate ${formatMetricValue(heartRate)} ${heartRate.unit || ''}`.trim());
   if (sleep) context.push(`sleep ${formatMetricValue(sleep)} ${sleep.unit || ''}`.trim());
-  return `${focusedCrew?.name || 'Elena Voss'}: ${overview}${context.length ? ` Latest entries: ${context.join('; ')}.` : ''} These are demo-rule summaries, not a medical assessment.`;
+  return `${focusedCrew?.name || 'Elena Voss'}: ${overview}${context.length ? ` Latest entries: ${context.join('; ')}.` : ''} .`;
 }
 
 function crewAvatar(crew) {
@@ -34,7 +34,7 @@ function crewAvatar(crew) {
 
 export function assistantRoom(expression = 'neutral', metrics = [], messages = [], expanded = false, focusedCrew = null) {
   const summary = buildHealthSummary(metrics, focusedCrew);
-  const history = messages.length ? messages : [{ role: 'assistant', text: 'Hello. I can summarize the selected crew member’s readings and list demo-threshold flags. What would you like to review?' }];
+  const history = messages.length ? messages : [{ role: 'assistant', text: 'Hello. I can summarize the selected crew member’s readings and list threshold flags. What would you like to review?' }];
   const selectedName = focusedCrew?.name || 'Elena Voss';
   const signalLabel = focusedCrew?.connectivity === 'offline' ? 'NO SIGNAL' : focusedCrew?.connectivity === 'weak' ? 'WEAK LINK' : 'CONNECTED';
 

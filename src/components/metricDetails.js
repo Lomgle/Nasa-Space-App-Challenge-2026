@@ -23,7 +23,7 @@ export function metricDetailsDialog(metric) {
           <span class="metric-status metric-status--${status.severity}"><span class="status-dot"></span>${statusLabel}</span>
         </div>
         <section class="metric-detail-section"><div class="metric-detail-section-heading"><b>Recent trend</b><span>${trend.length} local sample${trend.length === 1 ? '' : 's'} · configured limits</span></div><div class="metric-detail-chart metric-detail-chart--full">${metric.id === 'temperature' ? '<div class="metric-chart-caption">DAILY AVERAGE · LATEST TEMPERATURE ABOVE</div>' : ''}${metricGraph(metric)}</div><div class="metric-history-strip">${history}</div></section>
-        <section class="metric-detail-section"><div class="metric-detail-section-heading"><b>Threshold rules</b><span>Demo configuration</span></div>${thresholds}</section>
+        <section class="metric-detail-section"><div class="metric-detail-section-heading"><b>Threshold rules</b><span>Configuration</span></div>${thresholds}</section>
         <div class="metric-detail-meta"><span>Last updated</span><b>${escapeHTML(metric.updated || 'Just now')}</b></div>
         <div class="modal-actions"><span class="modal-note">Values are stored locally on this device.</span><button type="button" class="button button--primary" data-action="edit" data-id="${escapeHTML(metric.id)}">Edit metric</button></div>
       </section>
