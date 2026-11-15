@@ -5898,28 +5898,6 @@ CONTAINER & MEDIA QUERIES
   clip-path: inset(50%);
 }
 
-.import-storage-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 12px;
-  color: var(--muted);
-  font-size: 10px;
-  line-height: 1.55;
-}
-
-.import-storage-note > span:first-child {
-  flex: 0 0 auto;
-  color: var(--green);
-  margin-top: 1px;
-}
-
-.import-storage-note code {
-  color: var(--text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 10px;
-}
-
 .import-status {
   margin-top: 13px;
   padding: 10px 12px;
