@@ -6,6 +6,8 @@ import { metricCard } from './components/metricCard.js';
 import { assistantRoom } from './components/assistantRoom.js';
 import { metricDialog } from './components/metricDialog.js';
 import { metricDetailsDialog } from './components/metricDetails.js';
+import { importDataPage } from './components/importData.js';
+import { mergeCSVFiles, serializeCSV } from './lib/csv.js';
 const AURA_MEMORY_KEY = 'orbit-health-aura-memory-v1';
 const MAX_STORED_MESSAGES = 500;
 
@@ -109,6 +111,9 @@ export class App {
 
     this.state.chatMessages = this.chatMessages;
     this.chatExpanded = false;
+    this.importDataset = null;
+    this.importPage = 0;
+    this.importStatus = '';
     this.terminalLines = [];
     this.crewSummaryIndex = 0;
     this.draggedMetricId = null;
@@ -216,7 +221,7 @@ export class App {
     this.expression = this.getAssistantExpression();
     const activityCount = this.state.log.length;
     if (this.view === 'crew') { const selectedIndex = this.getCrewSnapshot().findIndex(member => member.id === this.state.selectedCrewId); if (selectedIndex >= 0 && !this.crewSummaryIndexTouched) this.crewSummaryIndex = selectedIndex; }
-    const viewTitle = ({ overview: 'Crew overview', crew: 'Crew summary', comms: 'Crew comms', environment: 'Environment', activity: 'Activity log', debug: 'Debug' })[this.view] || 'Crew overview';
+    const viewTitle = ({ overview: 'Crew overview', crew: 'Crew summary', comms: 'Crew comms', environment: 'Environment', activity: 'Activity log', import: 'Import data', debug: 'Debug' })[this.view] || 'Crew overview';
 
     this.root.innerHTML = `
       <div class="app-shell ${this.sidebarCollapsed ? 'sidebar-collapsed' : ''}" data-theme="dark">
@@ -232,6 +237,7 @@ export class App {
             <button class="nav-item ${this.view === 'comms' ? 'is-active' : ''}" data-action="navigate" data-view="comms" title="Crew comms">${icon('messageCircle', 18)}<span>Crew comms</span><span class="nav-count">${this.state.crewChatMessages.length}</span></button>
             <button class="nav-item ${this.view === 'environment' ? 'is-active' : ''}" data-action="navigate" data-view="environment" title="Environment">${icon('activity', 18)}<span>Environment</span></button>
             <button class="nav-item ${this.view === 'activity' ? 'is-active' : ''}" data-action="navigate" data-view="activity" title="Activity log">${icon('clock', 18)}<span>Activity log</span><span class="nav-count">${activityCount}</span></button>
+            <button class="nav-item ${this.view === 'import' ? 'is-active' : ''}" data-action="navigate" data-view="import" title="Import data">${icon('upload', 18)}<span>Import data</span></button>
             <button class="nav-item ${this.view === 'debug' ? 'is-active' : ''}" data-action="navigate" data-view="debug" title="Debug">${icon('terminal', 18)}<span>Debug</span></button>
           </nav>
           <div class="sidebar-divider"></div>
@@ -263,7 +269,7 @@ export class App {
             </div>
           </header>
 
-          ${this.view === 'overview' ? this.renderOverview({ date }) : this.view === 'crew' ? this.renderCrew({ date }) : this.view === 'comms' ? this.renderCrewComms() : this.view === 'environment' ? this.renderEnvironment({ date }) : this.view === 'debug' ? this.renderDebug({ date }) : this.renderActivity({ date })}
+          ${this.view === 'overview' ? this.renderOverview({ date }) : this.view === 'crew' ? this.renderCrew({ date }) : this.view === 'comms' ? this.renderCrewComms() : this.view === 'environment' ? this.renderEnvironment({ date }) : this.view === 'import' ? importDataPage({ dataset: this.importDataset, page: this.importPage, status: this.importStatus }) : this.view === 'debug' ? this.renderDebug({ date }) : this.renderActivity({ date })}
           <footer class="page-footer"><span>ORBIT HEALTH <i>•</i> CREW MONITORING INTERFACE</span><span>Demo data · Local device storage</span></footer>
         </main>
         <div id="modal-root"></div>
@@ -326,6 +332,51 @@ export class App {
       date,
       daysElapsed: this.state.daysElapsed
     });
+  }
+
+  async handleCSVUpload(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+
+    this.importStatus = 'Reading CSV files…';
+    this.render();
+
+    try {
+      const totalSize = files.reduce((total, file) => total + file.size, 0);
+      if (totalSize > 20 * 1024 * 1024) {
+        throw new Error('The selected files exceed the 20 MB total limit.');
+      }
+      const invalidFile = files.find(file => !file.name.toLowerCase().endsWith('.csv'));
+      if (invalidFile) {
+        throw new Error(`${invalidFile.name} is not a CSV file.`);
+      }
+
+      const csvFiles = await Promise.all(files.map(async file => ({
+        name: file.name,
+        content: await file.text()
+      })));
+      this.importDataset = {
+        ...mergeCSVFiles(csvFiles),
+        importedAt: new Date().toISOString()
+      };
+      this.importPage = 0;
+      this.importStatus = `Loaded ${files.length} CSV file${files.length === 1 ? '' : 's'} for preview. Download the merged CSV to save a copy.`;
+    } catch (error) {
+      this.importStatus = error instanceof Error ? error.message : 'Could not read the selected CSV files.';
+    }
+
+    this.render();
+  }
+
+  downloadImportedCSV() {
+    if (!this.importDataset) return;
+    const csv = serializeCSV(this.importDataset.headers, this.importDataset.rows);
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'merged.csv';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   getCrewSnapshot() {
@@ -1462,6 +1513,9 @@ ${this.buildContext(focused)}`;
     if (action === 'backdrop-close' && event.target === button) this.closeModal();
     if (action === 'delete-metric') this.deleteMetric(button.dataset.id);
     if (action === 'ask-assistant') this.askAssistant(button.dataset.prompt);
+    if (action === 'import-page-prev') { this.importPage = Math.max(0, this.importPage - 1); this.render(); }
+    if (action === 'import-page-next') { this.importPage += 1; this.render(); }
+    if (action === 'download-import') this.downloadImportedCSV();
     if (action === 'terminal-clear') {
       this.terminalLines = [];
       this.updateTerminalOutput();
@@ -1471,6 +1525,7 @@ ${this.buildContext(focused)}`;
 
   handleChange(event) {
     if (event.target.id === 'avatar-upload') { this.handleAvatarUpload(event.target.files?.[0]); return; }
+    if (event.target.id === 'csv-upload') { this.handleCSVUpload(event.target.files); return; }
     if (event.target.name === 'direction') {
       const threshold = this.root.querySelector('[name="threshold"]');
       if (threshold) {

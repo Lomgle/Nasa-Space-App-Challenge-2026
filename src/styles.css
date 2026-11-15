@@ -5938,6 +5938,14 @@ CONTAINER & MEDIA QUERIES
   gap: 16px;
 }
 
+.imported-data-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .import-save-state {
   display: inline-flex;
   align-items: center;

@@ -17,7 +17,7 @@ export function importDataPage({ dataset, page = 0, status = "" }) {
     ? `<section class="panel imported-data-panel">
         <div class="imported-data-heading">
           <div><div class="eyebrow">IMPORTED RECORDS</div><h2>CSV data preview</h2><p>${totalRows.toLocaleString()} rows · ${dataset.headers.length} columns</p></div>
-          <span class="import-save-state ${saved ? "is-saved" : "is-download"}"><i></i>${saved ? "SAVED TO RAW_DATA" : "SESSION PREVIEW"}</span>
+          <div class="imported-data-actions"><span class="import-save-state ${saved ? "is-saved" : "is-download"}"><i></i>${saved ? "SAVED TO RAW_DATA" : "SESSION PREVIEW"}</span><button type="button" class="button button--secondary" data-action="download-import">Download merged CSV</button></div>
         </div>
         <div class="import-meta-row">
           <span>${icon("file", 14)} ${dataset.sourceFiles.map(escapeHTML).join(" · ")}</span>
@@ -41,7 +41,7 @@ export function importDataPage({ dataset, page = 0, status = "" }) {
     <section class="panel import-upload-panel">
       <div class="import-upload-copy"><div class="eyebrow">CSV INGESTION</div><h2>Upload mission data</h2><p>Select several CSV files at once. Their rows will be combined into one dataset. Matching column names are aligned, and columns found in only some files are retained.</p></div>
       <label class="import-dropzone" for="csv-upload"><span class="import-upload-icon">${icon("upload", 23)}</span><b>Choose CSV files</b><span>Multiple files supported · .csv format · up to 20 MB total</span><input id="csv-upload" type="file" accept=".csv,text/csv" multiple /></label>
-      <div class="import-storage-note"><span>${icon("shield", 14)}</span><span>Imported records are kept separate from the demo health metrics. With the local app server, the merged file is saved as <code>raw_data/merged.csv</code>.</span></div>
+      <div class="import-storage-note"><span>${icon("shield", 14)}</span><span>Imported records are kept separate from demo health metrics and stay in this page until you leave or refresh. Download the merged CSV to save a copy.</span></div>
       ${status ? `<div class="import-status" role="status" aria-live="polite">${escapeHTML(status)}</div>` : ""}
     </section>
     ${table}
