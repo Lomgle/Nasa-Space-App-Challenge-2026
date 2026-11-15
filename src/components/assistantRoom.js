@@ -5,7 +5,7 @@ function buildHealthSummary(metrics, focusedCrew) {
   if (focusedCrew && focusedCrew.id !== 'elena-voss') {
     const flag = focusedCrew.status === 'normal' ? 'No flags are currently recorded for this profile.' : 'This synthetic profile is marked for review by its example rules.';
     const readings = (focusedCrew.readings || []).map(([label, value]) => `${label}: ${value}`).join(' · ');
-    return `${focusedCrew.name} is the selected crew member. ${flag} Latest snapshot: ${readings}. These sample values are not medical guidance.`;
+    return `${focusedCrew.name} is the selected crew member. ${flag} Latest snapshot: ${readings}.`;
   }
 
   const checked = metrics.map(metric => ({ metric, result: evaluateMetric(metric) }));
