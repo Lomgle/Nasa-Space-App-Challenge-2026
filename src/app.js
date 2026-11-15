@@ -8,6 +8,7 @@ import { metricDialog } from './components/metricDialog.js';
 import { metricDetailsDialog } from './components/metricDetails.js';
 import { importDataPage } from './components/importData.js';
 import { mergeCSVFiles, serializeCSV } from './lib/csv.js';
+import { expressionForAssistantText } from './lib/assistantExpression.js';
 const AURA_MEMORY_KEY = 'orbit-health-aura-memory-v1';
 const MAX_STORED_MESSAGES = 500;
 
@@ -218,7 +219,10 @@ export class App {
     if (themeMeta) themeMeta.content = '#050805';
     const missionDate = new Date(Date.now() + this.state.daysElapsed * 86400000);
     const date = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(missionDate);
-    this.expression = this.getAssistantExpression();
+    const lastAssistantMessage = [...this.chatMessages].reverse().find(message => message.role === 'assistant');
+    this.expression = this.chatExpanded && lastAssistantMessage
+      ? expressionForAssistantText(lastAssistantMessage.text)
+      : this.getAssistantExpression();
     const activityCount = this.state.log.length;
     if (this.view === 'crew') { const selectedIndex = this.getCrewSnapshot().findIndex(member => member.id === this.state.selectedCrewId); if (selectedIndex >= 0 && !this.crewSummaryIndexTouched) this.crewSummaryIndex = selectedIndex; }
     const viewTitle = ({ overview: 'Crew overview', crew: 'Crew summary', comms: 'Crew comms', environment: 'Environment', activity: 'Activity log', import: 'Import data', debug: 'Debug' })[this.view] || 'Crew overview';
@@ -764,6 +768,10 @@ export class App {
 
     this.savePersonalConversation(focused.id);
     this.persist();
+    this.expression = this.chatExpanded
+      ? expressionForAssistantText(answer)
+      : this.getAssistantExpression();
+    this.updateAssistantExpression();
 
     return true;
   }
@@ -984,7 +992,9 @@ ${this.buildContext(focused)}`;
 
 
     this.state.chatMessages = this.chatMessages;
-    this.expression = this.getAssistantExpression();
+    this.expression = this.chatExpanded
+      ? expressionForAssistantText(answer)
+      : this.getAssistantExpression();
     this.persist();
     this.updateAssistantExpression();
 
@@ -1363,6 +1373,10 @@ ${this.buildContext(focused)}`;
   toggleAssistantExpand() {
     this.chatExpanded = !this.chatExpanded;
     document.body.classList.toggle('assistant-open', this.chatExpanded);
+    const lastAssistantMessage = [...this.chatMessages].reverse().find(message => message.role === 'assistant');
+    this.expression = this.chatExpanded && lastAssistantMessage
+      ? expressionForAssistantText(lastAssistantMessage.text)
+      : this.getAssistantExpression();
     const panel = this.root.querySelector('.assistant-panel');
     const backdrop = this.root.querySelector('.assistant-expand-backdrop');
     const button = this.root.querySelector('[data-action="toggle-assistant-expand"]');
@@ -1370,6 +1384,7 @@ ${this.buildContext(focused)}`;
       this.render();
       return;
     }
+    this.updateAssistantExpression();
     panel.classList.toggle('assistant-panel--expanded', this.chatExpanded);
     if (backdrop) backdrop.hidden = !this.chatExpanded;
     panel.setAttribute('role', this.chatExpanded ? 'dialog' : 'region');
