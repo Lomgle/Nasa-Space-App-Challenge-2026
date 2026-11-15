@@ -872,8 +872,8 @@ ${this.buildContext(focused)}`;
           ...history,
           { role: 'user', content: question }
         ],
-        max_tokens: 200,
-        temperature: 0.3
+        max_tokens: 500,
+        temperature: 0.5
       })
     });
 
