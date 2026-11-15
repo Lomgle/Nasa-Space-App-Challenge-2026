@@ -1,6 +1,5 @@
 import { prepareSpeech, stopSpeaking } from './lib/tts.js';
-import { DEFAULT_METRICS } from './data/metricRegistry.js';
-import { DEMO_CREW } from './data/crewRegistry.js';
+import { DEFAULT_METRICS, DEMO_CREW } from './data/store.js';
 import { STORAGE_KEY, loadState, saveState, evaluateMetric, formatMetricValue, createLogEntry, formatTimestamp } from './lib/health.js';
 import { escapeHTML, icon } from './lib/ui.js';
 import { metricCard } from './components/metricCard.js';
