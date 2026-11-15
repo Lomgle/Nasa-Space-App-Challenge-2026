@@ -3,7 +3,7 @@
 https://lomgle.github.io/Nasa-Space-App-Challenge-2026/
 
 ## Run Locally
-AURA – Setup Instructions
+Setup Instructions
 Follow these steps to download and run the project locally.
 1. Clone the repository
 - Open a terminal and run: git clone https://lomgle.github.io/Nasa-Space-App-Challenge-2026/
