@@ -41,7 +41,6 @@ export function importDataPage({ dataset, page = 0, status = "" }) {
     <section class="panel import-upload-panel">
       <div class="import-upload-copy"><div class="eyebrow">CSV INGESTION</div><h2>Upload mission data</h2><p>Select several CSV files at once. Their rows will be combined into one dataset. Matching column names are aligned, and columns found in only some files are retained.</p></div>
       <label class="import-dropzone" for="csv-upload"><span class="import-upload-icon">${icon("upload", 23)}</span><b>Choose CSV files</b><span>Multiple files supported · .csv format · up to 20 MB total</span><input id="csv-upload" type="file" accept=".csv,text/csv" multiple /></label>
-      <div class="import-storage-note"><span>${icon("shield", 14)}</span><span>Imported records are kept separate from demo health metrics and stay in this page until you leave or refresh. Download the merged CSV to save a copy.</span></div>
       ${status ? `<div class="import-status" role="status" aria-live="polite">${escapeHTML(status)}</div>` : ""}
     </section>
     ${table}
