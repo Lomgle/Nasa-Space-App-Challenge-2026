@@ -1,13 +1,15 @@
-# Orbit Health
+# Cosmitility
 
 https://lomgle.github.io/Nasa-Space-App-Challenge-2026/
 
-## Run locally
+## Run Locally
+AURA – Setup Instructions
+Follow these steps to download and run the project locally.
+1. Clone the repository
+- Open a terminal and run: git clone https://lomgle.github.io/Nasa-Space-App-Challenge-2026/
 
-Use Node.js 18 or newer, then run:
-
-```bash
-npm start
-```
-
-Import data (sidebar): upload one or more long-format CSVs (see `sample/health-import-sample.csv` or the **Download template CSV** button). The app validates the merged file and shows a review; **Apply** saves it in the browser as the new base data (overwriting matching astronaut + metric + date, creating new astronauts). Any invalid row blocks the whole import. **Factory reset** (Debug) removes imported data and restores `data/*.json`.
+2. Download the AI model
+- The AI model files are not included in this GitHub repository because of their large file size. You must download them separately.
+- Open the model folder in the project directory.
+- Download the model files from our Google Drive: https://drive.google.com/drive/folders/1wUKQO0p8oUP5GBHAUQpKWMLNNg-enQGe?usp=sharing
+- Place the model files inside the model folder.
